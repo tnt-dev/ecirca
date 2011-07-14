@@ -19,11 +19,10 @@
 %% THE SOFTWARE.
 
 -module(ecirca).
--export([new/1,
-         set/3,
-         get/2,
-         push/2,
-         slice/3]).
+-export([new/2,
+         get/2, slice/3,
+         set/3, push/2,
+         max_slice/0, max_size/0, size/1]).
 
 -on_load(nif_init/0).
 
@@ -32,9 +31,11 @@
 -define(NULLVAL, 16#FFFFFFFFFFFFFFFF).
 
 -type res() :: <<>>.
+-type ecirca_type() :: last | max | min | sum | avg.
 
--spec new(pos_integer()) -> {ok, res()}.
-new(_Size) -> not_loaded(?LINE).
+-spec new(pos_integer(), ecirca_type()) -> {ok, res()} |
+                                           {error, max_size}.
+new(_Size, _Type) -> not_loaded(?LINE).
 
 -spec set(res(), pos_integer(), pos_integer()) -> {ok, res()} |
                                                   {error, not_found}.
@@ -50,6 +51,15 @@ push(_Res, _Val) -> not_loaded(?LINE).
 -spec slice(res(), pos_integer(), pos_integer()) -> [pos_integer()] |
                                                     {error, slice_too_big}.
 slice(_Res, _Start, _End) -> not_loaded(?LINE).
+
+-spec max_size() -> {ok, pos_integer()}.
+max_size() -> not_loaded(?LINE).
+
+-spec max_slice() -> {ok, pos_integer()}.
+max_slice() -> not_loaded(?LINE).
+
+-spec size(res()) -> {ok, pos_integer()}.
+size(_Res) -> not_loaded(?LINE).
 
 %% @doc Loads a NIF
 -spec nif_init() -> ok | {error, _}.

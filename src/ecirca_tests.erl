@@ -117,3 +117,7 @@ get_subtest_val(C) ->
     [?assertEqual({ok, C}, ecirca:push(C, X)) || X <- lists:seq(1, 5)],
      [?assertEqual({ok, 5 - X + 1}, ecirca:get(C, X))
      || X <- lists:seq(1, 5)].
+
+%% -------------------------------------------------------------------
+
+
