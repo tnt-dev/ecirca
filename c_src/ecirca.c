@@ -26,25 +26,25 @@
 #define ERL_MAKE_SIZE   enif_make_uint
 #define ERL_GET_ELEM    enif_get_uint
 #define ERL_GET_SIZE    enif_get_uint
-#define MAX_SLICE       10
-#define MAX_SIZE        100
+#define MAX_SLICE       1000
+#define MAX_SIZE        1000000
 
-typedef uint32_t        elem_t
-typedef uint32_t        size_t
+typedef uint32_t        elem_t;
+typedef uint32_t        length_t;
 
 /* data structure */
 typedef struct {
-    size_t              begin;
+    length_t              begin;
     elem_t              *circa;
-    size_t              size;
+    length_t              size;
     unsigned short int  filled;
 } circactx;
 
 ErlNifResourceType* circa_type;
 
 /* get array index with respect to array bounds */
-size_t getIndex(circactx * ctx, size_t i) {
-    size_t index;
+length_t getIndex(circactx * ctx, length_t i) {
+    length_t index;
 
     if (i >= ctx->begin + 1) {
         index = ctx->size + ctx->begin - i;
@@ -69,7 +69,7 @@ static ERL_NIF_TERM
 new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
     ERL_NIF_TERM ret;
-    size_t size;
+    length_t size;
 
     if (argc != 1) {
         return enif_make_badarg(env);
@@ -123,10 +123,25 @@ push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
                                  enif_make_resource(env, ctx));
 }
 
+/*
+static ERL_NIF_TERM
+push_list(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    circactx * ctx;
+    int listlen;
+    
+    if (argc != 2) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+        return enif_make_badarg(env);
+    }
+    
+}*/
+
 static ERL_NIF_TERM
 get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    size_t i, idx;
+    length_t i, idx;
 
     if (argc != 2) {
         return enif_make_badarg(env);
@@ -153,7 +168,7 @@ get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    size_t i, idx;
+    length_t i, idx;
     elem_t val;
 
     if (argc != 3) {
@@ -184,7 +199,7 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    size_t start, end, slicesize, idx, i, a;
+    length_t start, end, slicesize, idx, i, a;
     ERL_NIF_TERM * terms;
 
     if (argc != 3) {
@@ -260,6 +275,7 @@ max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     return enif_make_tuple2(env, enif_make_atom(env, "ok"),
                                  ERL_MAKE_SIZE(env, MAX_SLICE));
 }
+
 
 static ErlNifFunc functions[] =
 {
