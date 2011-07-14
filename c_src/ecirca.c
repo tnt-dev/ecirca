@@ -22,28 +22,29 @@
 #include "erl_nif.h"
 #include <inttypes.h>
 
-#define ELEM_TYPE       uint32_t
-#define SIZE_TYPE       uint32_t
 #define ERL_MAKE_ELEM   enif_make_uint
+#define ERL_MAKE_SIZE   enif_make_uint
 #define ERL_GET_ELEM    enif_get_uint
 #define ERL_GET_SIZE    enif_get_uint
 #define MAX_SLICE       10
-#define EMPTY_VAL       -1
 #define MAX_SIZE        100
+
+typedef uint32_t        elem_t
+typedef uint32_t        size_t
 
 /* data structure */
 typedef struct {
-    SIZE_TYPE           begin;
-    ELEM_TYPE           *circa;
-    SIZE_TYPE           size;
+    size_t              begin;
+    elem_t              *circa;
+    size_t              size;
     unsigned short int  filled;
 } circactx;
 
 ErlNifResourceType* circa_type;
 
 /* get array index with respect to array bounds */
-SIZE_TYPE getIndex(circactx* ctx, SIZE_TYPE i) {
-    SIZE_TYPE index;
+size_t getIndex(circactx * ctx, size_t i) {
+    size_t index;
 
     if (i >= ctx->begin + 1) {
         index = ctx->size + ctx->begin - i;
@@ -66,18 +67,27 @@ load(ErlNifEnv* env, void** priv, ERL_NIF_TERM info) {
 
 static ERL_NIF_TERM
 new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-    circactx* ctx;
+    circactx * ctx;
     ERL_NIF_TERM ret;
-    SIZE_TYPE size;
+    size_t size;
 
-    if (argc != 1 || !ERL_GET_SIZE(env, argv[0], &size) ||
-        size > MAX_SIZE || size == 0) {
+    if (argc != 1) {
         return enif_make_badarg(env);
+    }
+    if (!ERL_GET_SIZE(env, argv[0], &size)) {
+        return enif_make_badarg(env);
+    }
+    if (size == 0) {
+        return enif_make_badarg(env);
+    }
+    if (size > MAX_SIZE) {
+        return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                     enif_make_atom(env, "max_size"));
     }
 
     ctx         = enif_alloc_resource(circa_type, sizeof(circactx));
     ctx->begin  = 0;
-    ctx->circa  = enif_alloc(sizeof(ELEM_TYPE) * size);
+    ctx->circa  = enif_alloc(sizeof(elem_t) * size);
     ctx->size   = size;
     ctx->filled = 0;
 
@@ -90,10 +100,15 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    ELEM_TYPE val;
+    elem_t val;
 
-    if (argc != 2 || !ERL_GET_ELEM(env, argv[1], &val) ||
-        !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+    if (argc != 2) {
+        return enif_make_badarg(env);
+    }
+    if (!ERL_GET_ELEM(env, argv[1], &val)) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return enif_make_badarg(env);
     }
 
@@ -111,11 +126,18 @@ push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    SIZE_TYPE i, idx;
+    size_t i, idx;
 
-    if (argc != 2 || !ERL_GET_SIZE(env, argv[1], &i) ||
-        !enif_get_resource(env, argv[0], circa_type, (void**) &ctx) ||
-        i > ctx->size || i == 0) {
+    if (argc != 2) {
+        return enif_make_badarg(env);
+    }
+    if (!ERL_GET_SIZE(env, argv[1], &i)) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+        return enif_make_badarg(env);
+    }
+    if (i > ctx->size || i == 0) {
         return enif_make_badarg(env);
     }
     if (!ctx->filled && i > ctx->begin) {
@@ -131,13 +153,20 @@ get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    SIZE_TYPE i, idx;
-    ELEM_TYPE val;
+    size_t i, idx;
+    elem_t val;
 
-    if (argc != 3 || !ERL_GET_SIZE(env, argv[1], &i) ||
-        !ERL_GET_ELEM(env, argv[2], &val) ||
-        !enif_get_resource(env, argv[0], circa_type, (void**) &ctx) ||
-        i > ctx->size || i == 0) {
+    if (argc != 3) {
+        return enif_make_badarg(env);
+    }
+    if (!ERL_GET_SIZE(env, argv[1], &i) ||
+        !ERL_GET_ELEM(env, argv[2], &val)) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+        return enif_make_badarg(env);
+    }
+    if (i > ctx->size || i == 0) {
         return enif_make_badarg(env);
     }
     if (!ctx->filled && i > ctx->begin) {
@@ -155,13 +184,20 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    SIZE_TYPE start, end, slicesize, idx, i, a;
+    size_t start, end, slicesize, idx, i, a;
     ERL_NIF_TERM * terms;
 
-    if (argc != 3 || !ERL_GET_SIZE(env, argv[1], &start) ||
-        !ERL_GET_SIZE(env, argv[2], &end) ||
-        !enif_get_resource(env, argv[0], circa_type, (void**) &ctx) ||
-        start > ctx->size || start == 0 ||
+    if (argc != 3) {
+        return enif_make_badarg(env);
+    }
+    if (!ERL_GET_SIZE(env, argv[1], &start) ||
+        !ERL_GET_SIZE(env, argv[2], &end)) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+        return enif_make_badarg(env);
+    }
+    if (start > ctx->size || start == 0 ||
         end > ctx->size || end == 0 || start > end) {
         return enif_make_badarg(env);
     }
@@ -180,13 +216,49 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     /* create slice */
     terms = enif_alloc(sizeof(ERL_NIF_TERM) * slicesize);
 
-    a = 0;
-    for (i = start; i <= end; i++) {
+    for (a = 0, i = start; i <= end; i++) {
         idx = getIndex(ctx, i);
         terms[a++] = ERL_MAKE_ELEM(env, ctx->circa[idx]);
     }
 
     return enif_make_list_from_array(env, terms, slicesize);
+}
+
+/* getter function for size */
+static ERL_NIF_TERM
+size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    circactx * ctx;
+    
+    if (argc != 1) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+        return enif_make_badarg(env);
+    }
+    
+    return enif_make_tuple2(env, enif_make_atom(env, "ok"),
+                                 ERL_MAKE_SIZE(env, ctx->size));
+}
+
+/* getter functions for constants */
+static ERL_NIF_TERM
+max_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    if (argc != 0) {
+        return enif_make_badarg(env);
+    }
+    
+    return enif_make_tuple2(env, enif_make_atom(env, "ok"),
+                                 ERL_MAKE_SIZE(env, MAX_SIZE));
+}
+
+static ERL_NIF_TERM
+max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    if (argc != 0) {
+        return enif_make_badarg(env);
+    }
+    
+    return enif_make_tuple2(env, enif_make_atom(env, "ok"),
+                                 ERL_MAKE_SIZE(env, MAX_SLICE));
 }
 
 static ErlNifFunc functions[] =
@@ -195,7 +267,11 @@ static ErlNifFunc functions[] =
     {"push", 2, push},
     {"get", 2, get},
     {"set", 3, set},
-    {"slice", 3, slice}
+    {"slice", 3, slice},
+    /* getter functions */
+    {"size", 1, size},
+    {"max_size", 0, max_size},
+    {"max_slice", 0, max_slice}
 };
 
 ERL_NIF_INIT(ecirca, functions, &load, NULL, NULL, NULL)
