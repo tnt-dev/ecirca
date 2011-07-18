@@ -26,16 +26,16 @@
 -define(BIG_VALUE, math:pow(10, 6)).
 
 new_test_() ->
-    [?_assertEqual({ok, <<>>}, ecirca:new(3)),
-     ?_assertError(badarg, ecirca:new(-1)),
-     ?_assertError(badarg, ecirca:new(0)),
-     ?_assertError(badarg, ecirca:new(?LARGE_VALUE))].
+    [?_assertEqual({ok, <<>>}, ecirca:new(3, add)),
+     ?_assertError(badarg, ecirca:new(-1, add)),
+     ?_assertError(badarg, ecirca:new(0, add)),
+     ?_assertError(badarg, ecirca:new(?LARGE_VALUE, add))].
 
 %% -------------------------------------------------------------------
 
 push_test_() ->
     {setup,
-     fun () -> {ok, C} = ecirca:new(5), C end,
+     fun () -> {ok, C} = ecirca:new(5, add), C end,
      fun (_) -> ok end,
      fun (C) -> {with, C,
                  [fun push_subtest_badarg/1,
@@ -54,7 +54,7 @@ push_subtest_val(C) ->
 
 get_test_() ->
     {setup,
-     fun () -> {ok, C} = ecirca:new(5), C end,
+     fun () -> {ok, C} = ecirca:new(5, add), C end,
      fun (_) -> ok end,
      fun (C) -> {with, C,
                  [fun get_subtest_badarg/1,
@@ -72,7 +72,7 @@ get_subtest_badarg(C) ->
 
 get_subtest_nfound(C) ->
     ?assertEqual({error, not_found}, ecirca:get(C, 1)),
-    ?assertEqual(ok, ecirca:push(C, 13)),
+    ?assertEqual({ok, C}, ecirca:push(C, 13)),
     ?assertEqual({ok, 13}, ecirca:get(C, 1)),
     [?assertEqual({error, not_found}, ecirca:get(C, X))
      || X <- lists:seq(2, 5)].
@@ -91,7 +91,7 @@ get_subtest_val2(C) ->
 
 set_test_() ->
     {setup,
-     fun () -> {ok, C} = ecirca:new(5), C end,
+     fun () -> {ok, C} = ecirca:new(5, add), C end,
      fun (_) -> ok end,
      fun (C) -> {with, C,
                  [fun set_subtest_badarg/1,
@@ -100,16 +100,17 @@ set_test_() ->
      end}.
 
 set_subtest_badarg(C) ->
-    ?assertError(badarg, ecirca:set(foobar, 1)),
-    ?assertError(badarg, ecirca:set(C, -1)),
-    ?assertError(badarg, ecirca:set(C, 0)),
-    ?assertError(badarg, ecirca:set(C, ?LARGE_VALUE)),
-    ?assertError(badarg, ecirca:set(C, 6)).
-
+    ?assertError(badarg, ecirca:set(foobar, 1, 13)),
+    ?assertError(badarg, ecirca:set(C, -1, 13)),
+    ?assertError(badarg, ecirca:set(C, 0, 13)),
+    ?assertError(badarg, ecirca:set(C, ?LARGE_VALUE, 13)),
+    ?assertError(badarg, ecirca:set(C, 6, 13)),
+    ?assertError(badarg, ecirca:set(C, 1, ?LARGE_VALUE)),
+    ?assertError(badarg, ecirca:set(C, 1, -1)).
 set_subtest_nfound(C) ->
-    ?assertEqual({error, not_found}, ecirca:set(C, 1)),
-    ?assertEqual(ok, ecirca:push(C, 13)),
-    ?assertEqual({ok, 13}, ecirca:set(C, 1)),
+    ?assertEqual({error, not_found}, ecirca:set(C, 1, 1)),
+    ?assertEqual({ok, C}, ecirca:push(C, 13)),
+    ?assertEqual({ok, 13}, ecirca:set(C, 1, 13)),
     [?assertEqual({error, not_found}, ecirca:get(C, X))
      || X <- lists:seq(2, 5)].
 

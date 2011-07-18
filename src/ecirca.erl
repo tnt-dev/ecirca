@@ -22,7 +22,8 @@
 -export([new/2,
          get/2, slice/3,
          set/3, push/2,
-         max_slice/0, max_size/0, size/1]).
+         max_slice/0, max_size/0, size/1,
+         load/1]).
 
 -export_types([res/0]).
 
@@ -69,6 +70,7 @@ load(_Bin) -> not_loaded(?LINE).
 %% @doc Loads a NIF
 -spec nif_init() -> ok | {error, _}.
 nif_init() ->
+    io:format("nif_init started~n"),
     SoName = case code:priv_dir(?APPNAME) of
         {error, bad_name} ->
             case filelib:is_dir(filename:join(["..", priv])) of
@@ -80,7 +82,10 @@ nif_init() ->
         Dir ->
             filename:join(Dir, ?MODULE)
     end,
-    erlang:load_nif(SoName, 0).
+    io:format("soname: ~p~n", [SoName]),
+    Res = erlang:load_nif(SoName, 0),
+    io:format("result: ~p", [Res]),
+    Res.
 
 not_loaded(Line) ->
     exit({not_loaded, [{module, ?MODULE}, {line, Line}]}).
