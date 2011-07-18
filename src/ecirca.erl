@@ -24,6 +24,8 @@
          set/3, push/2,
          max_slice/0, max_size/0, size/1]).
 
+-export_types([res/0]).
+
 -on_load(nif_init/0).
 
 -define(APPNAME, ?MODULE).
@@ -60,6 +62,9 @@ max_slice() -> not_loaded(?LINE).
 
 -spec size(res()) -> {ok, pos_integer()}.
 size(_Res) -> not_loaded(?LINE).
+
+-spec load(binary()) -> {ok, res()}.
+load(_Bin) -> not_loaded(?LINE).
 
 %% @doc Loads a NIF
 -spec nif_init() -> ok | {error, _}.
