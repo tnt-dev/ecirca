@@ -21,51 +21,71 @@
 -module(ecirca).
 -export([new/2,
          get/2, slice/3,
-         set/3, push/2,
+         set/3, update/3, push/2, push_many/3, push_list/2,
          max_slice/0, max_size/0, size/1,
-         load/1]).
+         load/1, save/1]).
 
 -export_types([res/0]).
 
 -on_load(nif_init/0).
 
+-define(STUB, not_loaded(?LINE)).
 -define(APPNAME, ?MODULE).
 -define(LIBNAME, ?MODULE).
 -define(NULLVAL, 16#FFFFFFFFFFFFFFFF).
 
--type res() :: <<>>.
+-type res()         :: <<>>.
+-type nonneg()      :: non_neg_integer().
 -type ecirca_type() :: last | max | min | sum | avg.
 
 -spec new(pos_integer(), ecirca_type()) -> {ok, res()} |
                                            {error, max_size}.
-new(_Size, _Type) -> not_loaded(?LINE).
+new(_Size, _Type) -> ?STUB.
 
--spec set(res(), pos_integer(), pos_integer()) -> {ok, res()} |
-                                                  {error, not_found}.
-set(_Res, _I, _Val) -> not_loaded(?LINE).
+-spec set(res(), pos_integer(), nonneg()) -> {ok, res()} |
+                                             {error, not_found}.
+set(_Res, _I, _Val) -> ?STUB.
 
--spec get(res(), pos_integer()) -> {ok, pos_integer()} |
-                                   {error, not_found}.
-get(_Res, _I) -> not_loaded(?LINE).
+%% TODO
+-spec update(res(), pos_integer(), nonneg()) -> {ok, res()} |
+                                                {error, not_found}.
+update(_Res, _I, _Val) -> ?STUB.
 
 -spec push(res(), pos_integer()) -> {ok, res()}.
-push(_Res, _Val) -> not_loaded(?LINE).
+push(_Res, _Val) -> ?STUB.
 
--spec slice(res(), pos_integer(), pos_integer()) -> [pos_integer()] |
+%% TODO
+-spec push_many(res(), nonneg(), nonneg()) -> {ok, res()}.
+push_many(_Res, _N, _Val) -> ?STUB.
+
+%% TODO
+-spec push_list(res(), [nonneg()]) -> {ok, res()}.
+push_list(_Res, _Lst) -> ?STUB.
+
+-spec get(res(), pos_integer()) -> {ok, nonneg()} |
+                                   {error, not_found}.
+get(_Res, _I) -> ?STUB.
+
+-spec slice(res(), pos_integer(), pos_integer()) -> [nonneg()] |
                                                     {error, slice_too_big}.
-slice(_Res, _Start, _End) -> not_loaded(?LINE).
+slice(_Res, _Start, _End) -> ?STUB.
 
 -spec max_size() -> {ok, pos_integer()}.
-max_size() -> not_loaded(?LINE).
+max_size() -> ?STUB.
 
 -spec max_slice() -> {ok, pos_integer()}.
-max_slice() -> not_loaded(?LINE).
+max_slice() -> ?STUB.
 
 -spec size(res()) -> {ok, pos_integer()}.
-size(_Res) -> not_loaded(?LINE).
+size(_Res) -> ?STUB.
 
+%% TODO
 -spec load(binary()) -> {ok, res()}.
-load(_Bin) -> not_loaded(?LINE).
+load(_Bin) -> ?STUB.
+
+%% TODO
+-spec save(res()) -> {ok, binary()}.
+save(_Res) -> ?STUB.
 
 %% @doc Loads a NIF
 -spec nif_init() -> ok | {error, _}.
