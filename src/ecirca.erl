@@ -19,11 +19,19 @@
 %% THE SOFTWARE.
 
 -module(ecirca).
--export([new/2,
-         get/2, slice/3,
-         set/3, update/3, push/2, push_many/3, push_list/2,
-         max_slice/0, max_size/0, size/1,
-         load/1, save/1]).
+
+%% Init
+-export([new/2]).
+%% Getters
+-export([get/2, slice/3]).
+%% Setters
+-export([set/3, update/3, push/2, push_many/3, push_list/2]).
+%% Compile-time constants
+-export([max_slice/0, max_size/0]).
+%% Current circa properties
+-export([size/1]).
+%% Persistence
+-export([load/1, save/1]).
 
 -export_types([res/0]).
 
@@ -35,6 +43,7 @@
 -define(NULLVAL, 16#FFFFFFFFFFFFFFFF).
 
 -type res()         :: <<>>.
+-type maybe_value() :: non_neg_integer() | empty.
 -type nonneg()      :: non_neg_integer().
 -type ecirca_type() :: last | max | min | sum | avg.
 
@@ -42,31 +51,31 @@
                                            {error, max_size}.
 new(_Size, _Type) -> ?STUB.
 
--spec set(res(), pos_integer(), nonneg()) -> {ok, res()} |
-                                             {error, not_found}.
+-spec set(res(), pos_integer(), maybe_value()) -> {ok, res()} |
+                                                  {error, not_found}.
 set(_Res, _I, _Val) -> ?STUB.
 
 %% TODO
--spec update(res(), pos_integer(), nonneg()) -> {ok, res()} |
-                                                {error, not_found}.
+-spec update(res(), pos_integer(), maybe_value()) -> {ok, res()} |
+                                                     {error, not_found}.
 update(_Res, _I, _Val) -> ?STUB.
 
--spec push(res(), pos_integer()) -> {ok, res()}.
+-spec push(res(), maybe_value()) -> {ok, res()}.
 push(_Res, _Val) -> ?STUB.
 
 %% TODO
--spec push_many(res(), nonneg(), nonneg()) -> {ok, res()}.
+-spec push_many(res(), nonneg(), maybe_value()) -> {ok, res()}.
 push_many(_Res, _N, _Val) -> ?STUB.
 
 %% TODO
--spec push_list(res(), [nonneg()]) -> {ok, res()}.
+-spec push_list(res(), [maybe_value()]) -> {ok, res()}.
 push_list(_Res, _Lst) -> ?STUB.
 
--spec get(res(), pos_integer()) -> {ok, nonneg()} |
+-spec get(res(), pos_integer()) -> {ok, maybe_value()} |
                                    {error, not_found}.
 get(_Res, _I) -> ?STUB.
 
--spec slice(res(), pos_integer(), pos_integer()) -> [nonneg()] |
+-spec slice(res(), pos_integer(), pos_integer()) -> {ok, [maybe_value()]} |
                                                     {error, slice_too_big}.
 slice(_Res, _Start, _End) -> ?STUB.
 
