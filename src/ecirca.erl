@@ -33,7 +33,7 @@
 %% Persistence
 -export([load/1, save/1]).
 
--export_types([res/0]).
+-export_types([res/0, maybe_value/0, value/0]).
 
 -on_load(nif_init/0).
 
@@ -44,6 +44,7 @@
 
 -type res()         :: <<>>.
 -type maybe_value() :: non_neg_integer() | empty.
+-type value()       :: non_neg_integer().
 -type nonneg()      :: non_neg_integer().
 -type ecirca_type() :: last | max | min | sum | avg.
 
@@ -58,16 +59,19 @@ set(_Res, _I, _Val) -> ?STUB.
 %% TODO
 -spec update(res(), pos_integer(), maybe_value()) -> {ok, res()} |
                                                      {error, not_found}.
-update(_Res, _I, _Val) -> ?STUB.
+update(Res, I, Val) ->
+    set(Res, I, Val).
 
 -spec push(res(), maybe_value()) -> {ok, res()}.
 push(_Res, _Val) -> ?STUB.
 
-%% TODO
+%% TODO: all
 -spec push_many(res(), nonneg(), maybe_value()) -> {ok, res()}.
-push_many(_Res, _N, _Val) -> ?STUB.
+push_many(Res, N, Val) ->
+    [push(Res, Val) || _ <- lists:seq(1, N)],
+    {ok, Res}.
 
-%% TODO
+%% TODO: all
 -spec push_list(res(), [maybe_value()]) -> {ok, res()}.
 push_list(_Res, _Lst) -> ?STUB.
 
@@ -75,6 +79,7 @@ push_list(_Res, _Lst) -> ?STUB.
                                    {error, not_found}.
 get(_Res, _I) -> ?STUB.
 
+%% TODO: reversed list when reversed args
 -spec slice(res(), pos_integer(), pos_integer()) -> {ok, [maybe_value()]} |
                                                     {error, slice_too_big}.
 slice(_Res, _Start, _End) -> ?STUB.
