@@ -52,6 +52,7 @@
                                            {error, max_size}.
 new(_Size, _Type) -> ?STUB.
 
+%% TODO: this one returns {ok, Val} instead of {ok, Res}
 -spec set(res(), pos_integer(), maybe_value()) -> {ok, res()} |
                                                   {error, not_found}.
 set(_Res, _I, _Val) -> ?STUB.
@@ -60,7 +61,10 @@ set(_Res, _I, _Val) -> ?STUB.
 -spec update(res(), pos_integer(), maybe_value()) -> {ok, res()} |
                                                      {error, not_found}.
 update(Res, I, Val) ->
-    set(Res, I, Val).
+    case set(Res, I, Val) of
+        {ok, _} -> {ok, Res};
+        T -> T
+    end.
 
 -spec push(res(), maybe_value()) -> {ok, res()}.
 push(_Res, _Val) -> ?STUB.
