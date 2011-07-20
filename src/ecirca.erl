@@ -72,7 +72,11 @@ push(_Res, _Val) -> ?STUB.
 %% TODO: all
 -spec push_many(res(), nonneg(), maybe_value()) -> {ok, res()}.
 push_many(Res, N, Val) ->
-    [push(Res, Val) || _ <- lists:seq(1, N)],
+    V = case Val of
+            empty -> 0;
+            T -> T
+        end,
+    [push(Res, V) || _ <- lists:seq(1, N)],
     {ok, Res}.
 
 %% TODO: all
@@ -83,7 +87,8 @@ push_list(_Res, _Lst) -> ?STUB.
                                    {error, not_found}.
 get(_Res, _I) -> ?STUB.
 
-%% TODO: reversed list when reversed args
+%% TODO: reversed list when reversed args; return 'empty' atom instead of
+%%       {error, not_found}
 -spec slice(res(), pos_integer(), pos_integer()) -> {ok, [maybe_value()]} |
                                                     {error, slice_too_big}.
 slice(_Res, _Start, _End) -> ?STUB.
