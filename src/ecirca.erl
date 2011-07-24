@@ -52,7 +52,6 @@
                                            {error, max_size}.
 new(_Size, _Type) -> ?STUB.
 
-%% TODO: this one returns {ok, Val} instead of {ok, Res}
 -spec set(res(), pos_integer(), maybe_value()) -> {ok, res()} |
                                                   {error, not_found}.
 set(_Res, _I, _Val) -> ?STUB.
@@ -88,7 +87,7 @@ push_list(_Res, _Lst) -> ?STUB.
 get(_Res, _I) -> ?STUB.
 
 %% TODO: reversed list when reversed args; return 'empty' atom instead of
-%%       {error, not_found}
+%%       {error, not_found}; return {ok, [...]} instead of [...]
 -spec slice(res(), pos_integer(), pos_integer()) -> {ok, [maybe_value()]} |
                                                     {error, slice_too_big}.
 slice(_Res, _Start, _End) -> ?STUB.
