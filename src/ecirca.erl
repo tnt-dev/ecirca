@@ -21,7 +21,7 @@
 -module(ecirca).
 
 %% Init
--export([new/2]).
+-export([new/2, test/0]).
 %% Getters
 -export([get/2, slice/3]).
 %% Setters
@@ -47,6 +47,13 @@
 -type value()       :: non_neg_integer().
 -type nonneg()      :: non_neg_integer().
 -type ecirca_type() :: last | max | min | sum | avg.
+
+test() ->
+	{ok, T} = ecirca:new(5, test),
+	ecirca:push(T, 1),
+	ecirca:push(T, 2),
+	ecirca:push(T, 3),
+	ecirca:slice(T, 1, 2).
 
 -spec new(pos_integer(), ecirca_type()) -> {ok, res()} |
                                            {error, max_size}.

@@ -177,8 +177,8 @@ get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         return enif_make_badarg(env);
     }
     if (!ctx->filled && i > ctx->begin) {
-        return enif_make_tuple2(env, enif_make_atom(env, "error"),
-                                     enif_make_atom(env, "not_found"));
+        return enif_make_tuple2(env, enif_make_atom(env, "ok"),
+                                     enif_make_atom(env, "empty"));
     }
 
     idx = getIndex(ctx, i);
@@ -240,7 +240,6 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     ERL_NIF_TERM atom_empty;
     int incr;
 
-    printf("slice started\n");
     if (argc != 3) {
         return enif_make_badarg(env);
     }
@@ -262,16 +261,11 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     } else {
         incr = 1;
         slicesize = end - start + 1;
-
     }
 
     if (slicesize > MAX_SLICE) {
         return enif_make_tuple2(env, enif_make_atom(env, "error"),
                                 enif_make_atom(env, "slice_too_big"));
-    }
-    if (!ctx->filled && (start > ctx->begin || end > ctx->begin)) {
-        return enif_make_tuple2(env, enif_make_atom(env, "error"),
-                                     enif_make_atom(env, "not_found"));
     }
 
     /* create slice */
@@ -279,23 +273,14 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     atom_empty = enif_make_atom(env, "empty");
 
-    printf("Slice size: %d\n", slicesize);
-
-    for (a = 0, i = start; i != end; i += incr) {
-        printf("i: %d\n", i);
+    for (a = 0, i = start; i != end + incr; i += incr) {
         idx = getIndex(ctx, i);
-        if (!ctx->filled && idx > ctx->begin) {
-            printf("a\n");
+        if (!ctx->filled && idx >= ctx->begin) {
             terms[a++] = atom_empty;
         } else {
-            printf("b\n");
             if (ctx->circa[idx] == EMPTY_VAL) {
-                printf("c\n");
                 terms[a++] = atom_empty;
             } else {
-                printf("d\n");
-                printf("idx: %d", idx);
-                printf("ctx->circa[idx]: %d", ctx->circa[idx]);
                 terms[a++] = ERL_MAKE_ELEM(env, ctx->circa[idx]);
             }
         }
