@@ -213,6 +213,11 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
                 return enif_make_badarg(env);
             }
         }
+    } else {
+        if (val == EMPTY_VAL) {
+            return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                         enif_make_atom(env, "overflow"));
+        }
     }
     if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return enif_make_badarg(env);
@@ -265,7 +270,7 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     if (slicesize > MAX_SLICE) {
         return enif_make_tuple2(env, enif_make_atom(env, "error"),
-                                enif_make_atom(env, "slice_too_big"));
+                                     enif_make_atom(env, "slice_too_big"));
     }
 
     /* create slice */
