@@ -364,7 +364,10 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (ctx->type == ecirca_avg) {
         buflen += sizeof(count_t) * ctx->size;
     }
+    //    unsigned char* bin_data;
+    printf("buflen: %d\n", buflen);
     bin_data = enif_make_new_binary(env, buflen, ret);
+    printf("sizeof: %d\n", (int) sizeof(bin_data));
     /*    if (!enif_alloc_binary(buflen, nif_bin)) {
         return enif_make_tuple2(env, enif_make_atom(env, "error"),
                                 enif_make_atom(env, "bad_alloc"));
