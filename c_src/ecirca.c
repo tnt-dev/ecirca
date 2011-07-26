@@ -35,7 +35,7 @@ typedef uint32_t        elem_t;
 typedef uint32_t        length_t;
 typedef uint32_t        count_t;
 
-char *  emptystr = "empty";
+static const char emptystr[] = "empty";
 
 /* data structures */
 typedef enum {
@@ -92,7 +92,7 @@ static ERL_NIF_TERM
 new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
     ERL_NIF_TERM ret;
-    length_t size, i;
+    length_t size;
 
     if (argc != 2) {
         return enif_make_badarg(env);
@@ -115,9 +115,7 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     ctx->filled = 0;
     ctx->type   = ecirca_last;
 
-    for (i = 0; i < size; i++) {
-        ctx->circa[i] = EMPTY_VAL;
-    }
+    memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
 
     ret = enif_make_resource(env, ctx);
     enif_release_resource(ctx);
@@ -190,6 +188,7 @@ get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return enif_make_badarg(env);
     }
+
     if (i > ctx->size || i == 0) {
         return enif_make_badarg(env);
     }
@@ -352,33 +351,29 @@ max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx* ctx;
-    //    ErlNifBinary* nif_bin = NULL;
-    ERL_NIF_TERM* ret;
+    ERL_NIF_TERM ret;
     unsigned char* bin_data;
-    length_t buflen, i;
+    length_t buflen, headerlen, i;
 
     if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return enif_make_badarg(env);
     }
 
-    buflen = (sizeof(length_t) +
-              sizeof(length_t) +
-              sizeof(unsigned short int) +
-              sizeof(ecirca_type) +
-              sizeof(elem_t) * ctx->size);
+    headerlen = (sizeof(length_t) +
+                 sizeof(length_t) +
+                 sizeof(unsigned short int) +
+                 sizeof(ecirca_type));
+    buflen =  (headerlen +
+               sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
         buflen += sizeof(count_t) * ctx->size;
     }
-    //    unsigned char* bin_data;
-    printf("buflen: %d\n", buflen);
-    bin_data = enif_make_new_binary(env, buflen, ret);
-    printf("sizeof: %d\n", (int) sizeof(bin_data));
-    /*    if (!enif_alloc_binary(buflen, nif_bin)) {
-        return enif_make_tuple2(env, enif_make_atom(env, "error"),
-                                enif_make_atom(env, "bad_alloc"));
-                                }*/
+
+    bin_data = enif_make_new_binary(env, buflen, &ret);
 
     /* format is size-begin-filled-type-circa-[count]*/
+    memset(bin_data, 0x00, headerlen);
+
     i = 0;
     bin_data[i] = ctx->size;
     i += sizeof(length_t);
@@ -388,12 +383,12 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     i += sizeof(unsigned short int);
     bin_data[i] = ctx->type;
     i += sizeof(ecirca_type);
-    /*memcpy(bin_data + i, ctx->circa, ctx->size * sizeof(elem_t));
+    memcpy(bin_data + i, ctx->circa, ctx->size * sizeof(elem_t));
 
     if (ctx->type == ecirca_avg) {
         i += ctx->size * sizeof(elem_t);
-        memcpy(nif_bin->data + i, ctx->count, ctx->size * sizeof(count_t));
-        }*/
+        memcpy(bin_data + i, ctx->count, ctx->size * sizeof(count_t));
+    }
 
     return enif_make_tuple2(env, enif_make_atom(env, "ok"), ret);
 }
