@@ -339,7 +339,7 @@ max_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 }
 
 static ERL_NIF_TERM
-max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    printf("sizeof: %d\n", (int) sizeof(bin_data));    printf("sizeof: %d\n", (int) sizeof(bin_data));max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (argc != 0) {
         return enif_make_badarg(env);
     }
@@ -355,6 +355,9 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     unsigned char* bin_data;
     length_t buflen, headerlen, i;
 
+    if (argc != 1) {
+        return enif_make_badarg(env);
+    }
     if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return enif_make_badarg(env);
     }
@@ -389,6 +392,38 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         i += ctx->size * sizeof(elem_t);
         memcpy(bin_data + i, ctx->count, ctx->size * sizeof(count_t));
     }
+
+    return enif_make_tuple2(env, enif_make_atom(env, "ok"), ret);
+}
+
+static ERL_NIF_TERM
+load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    circactx* ctx;
+    ErlNifBinary bin;
+
+    if (argc != 1) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_is_binary(env, argv[1])) {
+        return enif_make_badarg(env);
+    }
+    if (!enif_inspect_binary(env, argv[1], &bin)) {
+        return enif_make_badarg(env);
+    };
+
+    headerlen = (sizeof(length_t) +
+                 sizeof(length_t) +
+                 sizeof(unsigned short int) +
+                 sizeof(ecirca_type));
+    buflen =  (headerlen +
+               sizeof(elem_t) * ctx->size);
+    if (ctx->type == ecirca_avg) {
+        buflen += sizeof(count_t) * ctx->size;
+    }
+
 
     return enif_make_tuple2(env, enif_make_atom(env, "ok"), ret);
 }
