@@ -39,11 +39,11 @@ static const char emptystr[] = "empty";
 
 /* data structures */
 typedef enum {
-    ecirca_max,
-    ecirca_min,
-    ecirca_avg,
-    ecirca_sum,
-    ecirca_last
+    ecirca_last = 0,
+    ecirca_max  = 1,
+    ecirca_min  = 2,
+    ecirca_avg  = 3,
+    ecirca_sum  = 4
 } ecirca_type;
 
 typedef struct {
@@ -339,7 +339,7 @@ max_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 }
 
 static ERL_NIF_TERM
-    printf("sizeof: %d\n", (int) sizeof(bin_data));    printf("sizeof: %d\n", (int) sizeof(bin_data));max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (argc != 0) {
         return enif_make_badarg(env);
     }
@@ -378,14 +378,11 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     memset(bin_data, 0x00, headerlen);
 
     i = 0;
-    bin_data[i] = ctx->size;
-    i += sizeof(length_t);
-    bin_data[i] = ctx->begin;
-    i += sizeof(length_t);
-    bin_data[i] = ctx->filled;
-    i += sizeof(unsigned short int);
-    bin_data[i] = ctx->type;
-    i += sizeof(ecirca_type);
+    bin_data[i] = ctx->size;    i += sizeof(length_t);
+    bin_data[i] = ctx->begin;   i += sizeof(length_t);
+    bin_data[i] = ctx->filled;  i += sizeof(unsigned short int);
+    bin_data[i] = ctx->type;    i += sizeof(ecirca_type);
+
     memcpy(bin_data + i, ctx->circa, ctx->size * sizeof(elem_t));
 
     if (ctx->type == ecirca_avg) {
@@ -400,17 +397,16 @@ static ERL_NIF_TERM
 load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx* ctx;
     ErlNifBinary bin;
+    ERL_NIF_TERM ret;
+    length_t buflen, headerlen, i;
 
     if (argc != 1) {
         return enif_make_badarg(env);
     }
-    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+    if (!enif_is_binary(env, argv[0])) {
         return enif_make_badarg(env);
     }
-    if (!enif_is_binary(env, argv[1])) {
-        return enif_make_badarg(env);
-    }
-    if (!enif_inspect_binary(env, argv[1], &bin)) {
+    if (!enif_inspect_binary(env, argv[0], &bin)) {
         return enif_make_badarg(env);
     };
 
@@ -418,12 +414,48 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
                  sizeof(length_t) +
                  sizeof(unsigned short int) +
                  sizeof(ecirca_type));
+
+    if (bin.size < headerlen) {
+        return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                enif_make_atom(env, "bad_binary"));
+    }
+
+    /* format is size-begin-filled-type-circa-[count]*/
+    i = 0;
+    ctx = enif_alloc_resource(circa_type, sizeof(circactx));
+    ctx->size   = bin.data[i]; i += sizeof(length_t);
+    ctx->begin  = bin.data[i]; i += sizeof(length_t);
+    ctx->filled = bin.data[i]; i += sizeof(unsigned short int);
+    ctx->type   = bin.data[i]; i += sizeof(ecirca_type);
+
     buflen =  (headerlen +
                sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
         buflen += sizeof(count_t) * ctx->size;
     }
+    if (bin.size < buflen) {
+        return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                enif_make_atom(env, "bad_binary"));
+    }
+    if (ctx->size > MAX_SIZE) {
+        return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                enif_make_atom(env, "max_size"));
+    }
+    if (ctx->begin >= ctx->size ||
+        ctx->type < ecirca_last || ctx->type > ecirca_sum) {
+        return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                enif_make_atom(env, "bad_binary"));
+    }
 
+    ctx->circa  = enif_alloc(sizeof(elem_t) * ctx->size);
+    memcpy(ctx->circa, bin.data + i, ctx->size * sizeof(elem_t));
+    if (ctx->type == ecirca_avg) {
+        i += ctx->size * sizeof(elem_t);
+        memcpy(ctx->count, bin.data + i, ctx->size * sizeof(count_t));
+    }
+
+    ret = enif_make_resource(env, ctx);
+    enif_release_resource(ctx);
 
     return enif_make_tuple2(env, enif_make_atom(env, "ok"), ret);
 }
@@ -452,7 +484,8 @@ static ErlNifFunc functions[] =
     {"size", 1, size},
     {"max_size", 0, max_size},
     {"max_slice", 0, max_slice},
-    {"save", 1, save}
+    {"save", 1, save},
+    {"load", 1, load}
 };
 
 ERL_NIF_INIT(ecirca, functions, &init, NULL, NULL, NULL)
