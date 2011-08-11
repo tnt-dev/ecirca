@@ -78,11 +78,7 @@ push(_Res, _Val) -> ?STUB.
 %% TODO: all
 -spec push_many(res(), nonneg(), maybe_value()) -> {ok, res()}.
 push_many(Res, N, Val) ->
-    V = case Val of
-            empty -> 0;
-            T -> T
-        end,
-    [push(Res, V) || _ <- lists:seq(1, N)],
+    [push(Res, Val) || _ <- lists:seq(1, N)],
     {ok, Res}.
 
 %% TODO: all
