@@ -241,10 +241,10 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (i > ctx->size || i == 0) {
         return enif_make_badarg(env);
     }
-    if (!ctx->filled && i > ctx->begin) {
+    /*if (!ctx->filled && i > ctx->begin) {
         return enif_make_tuple2(env, enif_make_atom(env, "error"),
                                      enif_make_atom(env, "not_found"));
-    }
+                                     }*/
 
     idx = getIndex(ctx, i);
     ctx->circa[idx] = val;

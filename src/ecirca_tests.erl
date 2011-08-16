@@ -71,10 +71,10 @@ get_subtest_badarg(C) ->
     ?assertError(badarg, ecirca:get(C, 6)).
 
 get_subtest_nfound(C) ->
-    ?assertEqual({error, not_found}, ecirca:get(C, 1)),
+    ?assertEqual({ok, empty}, ecirca:get(C, 1)),
     ?assertEqual({ok, C}, ecirca:push(C, 13)),
     ?assertEqual({ok, 13}, ecirca:get(C, 1)),
-    [?assertEqual({error, not_found}, ecirca:get(C, X))
+    [?assertEqual({ok, empty}, ecirca:get(C, X))
      || X <- lists:seq(2, 5)].
 
 get_subtest_val1(C) ->
@@ -108,10 +108,10 @@ set_subtest_badarg(C) ->
     ?assertError(badarg, ecirca:set(C, 1, ?LARGE_VALUE)),
     ?assertError(badarg, ecirca:set(C, 1, -1)).
 set_subtest_nfound(C) ->
-    ?assertEqual({error, not_found}, ecirca:set(C, 1, 1)),
+    ?assertEqual({ok, C}, ecirca:set(C, 1, 1)),
     ?assertEqual({ok, C}, ecirca:push(C, 13)),
-    ?assertEqual({ok, 13}, ecirca:set(C, 1, 13)),
-    [?assertEqual({error, not_found}, ecirca:get(C, X))
+    ?assertEqual({ok, C}, ecirca:set(C, 1, 13)),
+    [?assertEqual({ok, empty}, ecirca:get(C, X))
      || X <- lists:seq(2, 5)].
 
 get_subtest_val(C) ->
