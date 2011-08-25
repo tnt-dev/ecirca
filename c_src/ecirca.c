@@ -248,10 +248,6 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (i > ctx->size || i == 0) {
         return enif_make_badarg(env);
     }
-    /*if (!ctx->filled && i > ctx->begin) {
-        return enif_make_tuple2(env, enif_make_atom(env, "error"),
-                                     enif_make_atom(env, "not_found"));
-                                     }*/
 
     idx = get_index(ctx, i);
     ctx->circa[idx] = val;
@@ -263,6 +259,7 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
+    char emptycmp[6];
     length_t i, idx;
     elem_t val;
 
@@ -273,8 +270,20 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         return enif_make_badarg(env);
     }
     if (!ERL_GET_ELEM(env, argv[2], &val)) {
-        /* TODO: check for empty value */
-        return enif_make_badarg(env);
+        if (!enif_get_atom(env, argv[2], emptycmp, 6, ERL_NIF_LATIN1)) {
+            return enif_make_badarg(env);
+        } else {
+            if (!strcmp(emptycmp, emptystr)) {
+                val = EMPTY_VAL;
+            } else {
+                return enif_make_badarg(env);
+            }
+        }
+    } else {
+        if (val == EMPTY_VAL) {
+            return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                         enif_make_atom(env, "overflow"));
+        }
     }
     if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return enif_make_badarg(env);
@@ -289,15 +298,33 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (ctx->type == ecirca_last) {
         ctx->circa[idx] = val;
     }
-    else if (ctx->type == ecirca_min) {
-        if (val < ctx->circa[idx]) {
-            ctx->circa[idx] = val;
+    else if (val != EMPTY_VAL && ctx->circa[idx] != EMPTY_VAL) {
+        if (ctx->type == ecirca_max) {
+            if (val > ctx->circa[idx]) {
+                ctx->circa[idx] = val;
+            }
+        }
+        else if (ctx->type == ecirca_min) {
+            if (val < ctx->circa[idx]) {
+                ctx->circa[idx] = val;
+            }
+        }
+        else if (ctx->type == ecirca_avg) {
+            if ((ctx->circa[idx] + val) / 2 >= val && 
+                (ctx->circa[idx] + val) / 2 >= ctx->circa[idx]) {
+                ctx->circa[idx] = (ctx->circa[idx] + val) / 2;
+            }
+        }
+        else if (ctx->type == ecirca_sum) {
+            if (ctx->circa[idx] + val >= val && 
+                ctx->circa[idx] + val >= ctx->circa[idx]) {
+                ctx->circa[idx] = ctx->circa[idx] + val;
+            }
         }
     }
-    else if (ctx->type == ecirca_max) {
-        if (val > ctx->circa[idx]) {
-            ctx->circa[idx] = val;
-        }
+    else {
+        return enif_make_tuple2(env, enif_make_atom(env, "error"),
+                                     enif_make_atom(env, "overflow"));      
     }
     
     return enif_make_tuple2(env, enif_make_atom(env, "ok"),
