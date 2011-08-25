@@ -39,11 +39,11 @@ static const char emptystr[] = "empty";
 
 /* data structures */
 typedef enum {
-    ecirca_last = 0,
-    ecirca_max  = 1,
-    ecirca_min  = 2,
-    ecirca_avg  = 3,
-    ecirca_sum  = 4
+    ecirca_last,
+    ecirca_max,
+    ecirca_min,
+    ecirca_avg,
+    ecirca_sum
 } ecirca_type;
 
 typedef struct {
@@ -57,10 +57,12 @@ typedef struct {
 
 ErlNifResourceType* circa_type;
 
-static int equals_empty(char *);
+/* additional functions */;
+static int set_type(char *);
 
 /* get array index with respect to array bounds */
-length_t getIndex(circactx * ctx, length_t i) {
+length_t 
+get_index(circactx * ctx, length_t i) {
     length_t index;
 
     if (i > ctx->begin) {
@@ -71,6 +73,7 @@ length_t getIndex(circactx * ctx, length_t i) {
     return index;
 }
 
+/* ecirca destructor */
 void
 circactx_dtor(ErlNifEnv* env, void* obj) {
     circactx * ctx = (circactx *) obj;
@@ -93,6 +96,7 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
     ERL_NIF_TERM ret;
     length_t size;
+    char typestr[5];
 
     if (argc != 2) {
         return enif_make_badarg(env);
@@ -107,13 +111,16 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         return enif_make_tuple2(env, enif_make_atom(env, "error"),
                                      enif_make_atom(env, "max_size"));
     }
+    if (!enif_get_atom(env, argv[1], typestr, 5, ERL_NIF_LATIN1)) {
+		return enif_make_badarg(env);
+	}
 
     ctx         = enif_alloc_resource(circa_type, sizeof(circactx));
     ctx->begin  = 0;
     ctx->circa  = enif_alloc(sizeof(elem_t) * size);
     ctx->size   = size;
     ctx->filled = 0;
-    ctx->type   = ecirca_last;
+    ctx->type   = set_type(typestr);
 
     memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
 
@@ -136,7 +143,7 @@ push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         if (!enif_get_atom(env, argv[1], emptycmp, 6, ERL_NIF_LATIN1)) {
             return enif_make_badarg(env);
         } else {
-            if (equals_empty(emptycmp)) {
+            if (!strcmp(emptycmp, emptystr)) {
                 val = EMPTY_VAL;
             } else {
                 return enif_make_badarg(env);
@@ -197,7 +204,7 @@ get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
                                      enif_make_atom(env, "empty"));
     }
 
-    idx = getIndex(ctx, i);
+    idx = get_index(ctx, i);
     if (ctx->circa[idx] == EMPTY_VAL) {
         ret = enif_make_atom(env, "empty");
     } else {
@@ -223,7 +230,7 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         if (!enif_get_atom(env, argv[2], emptycmp, 6, ERL_NIF_LATIN1)) {
             return enif_make_badarg(env);
         } else {
-            if (equals_empty(emptycmp)) {
+            if (!strcmp(emptycmp, emptystr)) {
                 val = EMPTY_VAL;
             } else {
                 return enif_make_badarg(env);
@@ -246,9 +253,53 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
                                      enif_make_atom(env, "not_found"));
                                      }*/
 
-    idx = getIndex(ctx, i);
+    idx = get_index(ctx, i);
     ctx->circa[idx] = val;
 
+    return enif_make_tuple2(env, enif_make_atom(env, "ok"),
+                                 enif_make_resource(env, ctx));
+}
+
+static ERL_NIF_TERM
+update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    circactx * ctx;
+    length_t i, idx;
+    elem_t val;
+
+    if (argc != 3) {
+        return enif_make_badarg(env);
+    }
+    if (!ERL_GET_SIZE(env, argv[1], &i)) {
+        return enif_make_badarg(env);
+    }
+    if (!ERL_GET_ELEM(env, argv[2], &val)) {
+        /* TODO: check for empty value */
+        return enif_make_badarg(env);
+    }
+    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
+        return enif_make_badarg(env);
+    }
+    if (i > ctx->size || i == 0) {
+        return enif_make_badarg(env);
+    }
+
+    idx = get_index(ctx, i);
+    
+    /* do something according to ecirca type */
+    if (ctx->type == ecirca_last) {
+        ctx->circa[idx] = val;
+    }
+    else if (ctx->type == ecirca_min) {
+        if (val < ctx->circa[idx]) {
+            ctx->circa[idx] = val;
+        }
+    }
+    else if (ctx->type == ecirca_max) {
+        if (val > ctx->circa[idx]) {
+            ctx->circa[idx] = val;
+        }
+    }
+    
     return enif_make_tuple2(env, enif_make_atom(env, "ok"),
                                  enif_make_resource(env, ctx));
 }
@@ -295,7 +346,7 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     atom_empty = enif_make_atom(env, "empty");
 
     for (a = 0, i = start; i != end + incr; i += incr) {
-        idx = getIndex(ctx, i);
+        idx = get_index(ctx, i);
         if (!ctx->filled && idx >= ctx->begin) {
             terms[a++] = atom_empty;
         } else {
@@ -460,18 +511,23 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     return enif_make_tuple2(env, enif_make_atom(env, "ok"), ret);
 }
 
+/* for setting ecirca type */
 static int
-equals_empty(char *str) {
-    int i;
-
-    for (i = 0; i < 6; i++) {
-        if (str[i] != emptystr[i]) {
-            return 0;
-        }
+set_type(char *str) {
+    if (strcmp(str, "max") == 0) {
+        return ecirca_max;
     }
-    return 1;
+    else if (strcmp(str, "min") == 0) {
+        return ecirca_min;
+    }
+    else if (strcmp(str, "avg") == 0) {
+        return ecirca_avg;
+    }
+    else if (strcmp(str, "sum") == 0) {
+        return ecirca_sum;
+    }
+    return ecirca_last;
 }
-
 
 static ErlNifFunc functions[] =
 {
@@ -479,6 +535,7 @@ static ErlNifFunc functions[] =
     {"push", 2, push},
     {"get", 2, get},
     {"set", 3, set},
+    {"update", 3, update},
     {"slice", 3, slice},
     /* getter functions */
     {"size", 1, size},
