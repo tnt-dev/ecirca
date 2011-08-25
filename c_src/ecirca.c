@@ -27,7 +27,7 @@
 #define ERL_MAKE_SIZE   enif_make_uint
 #define ERL_GET_ELEM    enif_get_uint
 #define ERL_GET_SIZE    enif_get_uint
-#define MAX_SLICE       1000
+#define MAX_SLICE       1000000
 #define MAX_SIZE        1000000
 #define EMPTY_VAL       UINT32_MAX
 
