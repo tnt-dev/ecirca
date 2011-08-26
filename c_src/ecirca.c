@@ -35,11 +35,10 @@
 #define MAX_ERLINT      576460752303423487
 #define EMPTY_VAL       UINT32_MAX
 
-#define PUT_BUF(BUF, OFFSET, VAL, TYPE) \
-    ((TYPE*)BUF + OFFSET)[0] = VAL; OFFSET += sizeof(TYPE);
-#define GET_BUF(BUF, OFFSET, VAL, TYPE) \
-    VAL = BUF[OFFSET]; OFFSET += sizeof(TYPE);
-
+#define PUT_BUF(BUF, OFFSET, VAL) \
+    *((typeof(VAL)*)BUF + OFFSET) = VAL; OFFSET += sizeof(VAL);
+#define GET_BUF(BUF, OFFSET, VAL) \
+    VAL = *((typeof(VAL)*)(BUF + OFFSET)); OFFSET += sizeof(VAL);
 
 typedef uint64_t            elem_t;
 typedef uint32_t            length_t;
@@ -69,7 +68,7 @@ typedef struct {
 ErlNifResourceType* circa_type;
 
 /* additional functions */
-static int set_type(char *);
+static int set_type(char*, ecirca_type*);
 
 /* get array index with respect to array bounds */
 length_t
@@ -108,6 +107,7 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     ERL_NIF_TERM ret;
     length_t size;
     char typestr[5];
+    ecirca_type type;
 
     if (argc != 2) {
         return enif_make_badarg(env);
@@ -125,13 +125,16 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (!enif_get_atom(env, argv[1], typestr, 5, ERL_NIF_LATIN1)) {
 		return enif_make_badarg(env);
 	}
+    if (!set_type(typestr, &type)) {
+        return enif_make_badarg(env);
+    }
 
     ctx         = enif_alloc_resource(circa_type, sizeof(circactx));
     ctx->begin  = 0;
     ctx->circa  = enif_alloc(sizeof(elem_t) * size);
     ctx->size   = size;
     ctx->filled = 0;
-    ctx->type   = set_type(typestr);
+    ctx->type   = type;
 
     memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
 
@@ -451,10 +454,10 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     memset(bin_data, 0x00, headerlen);
 
     i = 0;
-    PUT_BUF(bin_data, i, ctx->size, length_t);
-    PUT_BUF(bin_data, i, ctx->begin, length_t);
-    PUT_BUF(bin_data, i, ctx->filled, bool_t);
-    PUT_BUF(bin_data, i, ctx->type, ecirca_type);
+    PUT_BUF(bin_data, i, ctx->size);
+    PUT_BUF(bin_data, i, ctx->begin);
+    PUT_BUF(bin_data, i, ctx->filled);
+    PUT_BUF(bin_data, i, ctx->type);
 
     memcpy(bin_data + i, ctx->circa, ctx->size * sizeof(elem_t));
 
@@ -496,10 +499,10 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     /* format is size-begin-filled-type-circa-[count]*/
     i = 0;
     ctx = enif_alloc_resource(circa_type, sizeof(circactx));
-    GET_BUF(bin.data, i, ctx->size, length_t);
-    GET_BUF(bin.data, i, ctx->begin, length_t);
-    GET_BUF(bin.data, i, ctx->filled, bool_t);
-    GET_BUF(bin.data, i, ctx->type, ecirca_type);
+    GET_BUF(bin.data, i, ctx->size);
+    GET_BUF(bin.data, i, ctx->begin);
+    GET_BUF(bin.data, i, ctx->filled);
+    GET_BUF(bin.data, i, ctx->type);
 
     buflen = (headerlen + sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
@@ -534,20 +537,23 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
 /* for setting ecirca type */
 static int
-set_type(char *str) {
+set_type(char* str, ecirca_type* type) {
     if (strcmp(str, "max") == 0) {
-        return ecirca_max;
+        *type = ecirca_max; return 1;
     }
     else if (strcmp(str, "min") == 0) {
-        return ecirca_min;
+        *type = ecirca_min; return 1;
     }
     else if (strcmp(str, "avg") == 0) {
-        return ecirca_avg;
+        *type = ecirca_avg; return 1;
     }
     else if (strcmp(str, "sum") == 0) {
-        return ecirca_sum;
+        *type = ecirca_sum; return 1;
     }
-    return ecirca_last;
+    else if (strcmp(str, "last") == 0) {
+        *type = ecirca_last; return 1;
+    }
+    return 0;
 }
 
 static ErlNifFunc functions[] =
