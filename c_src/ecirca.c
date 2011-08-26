@@ -323,8 +323,7 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         }
     }
     else {
-        return enif_make_tuple2(env, enif_make_atom(env, "error"),
-                                     enif_make_atom(env, "overflow"));
+        ctx->circa[idx] = val;
     }
 
     return enif_make_tuple2(env, enif_make_atom(env, "ok"),
