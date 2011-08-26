@@ -21,19 +21,30 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <netinet/in.h>
 #include "erl_nif.h"
 
-#define ERL_MAKE_ELEM   enif_make_uint
+#define ERL_MAKE_ELEM   enif_make_uint64
 #define ERL_MAKE_SIZE   enif_make_uint
-#define ERL_GET_ELEM    enif_get_uint
+#define ERL_GET_ELEM    enif_get_uint64
 #define ERL_GET_SIZE    enif_get_uint
 #define MAX_SLICE       1000000
 #define MAX_SIZE        1000000
+/* bigger vals will be represented as bigints in erlang VM */
+/* TODO: add check for this value in all functions */
+#define MAX_ERLINT      576460752303423487
 #define EMPTY_VAL       UINT32_MAX
 
-typedef uint32_t        elem_t;
-typedef uint32_t        length_t;
-typedef uint32_t        count_t;
+#define PUT_BUF(BUF, OFFSET, VAL, TYPE) \
+    ((TYPE*)BUF + OFFSET)[0] = VAL; OFFSET += sizeof(TYPE);
+#define GET_BUF(BUF, OFFSET, VAL, TYPE) \
+    VAL = BUF[OFFSET]; OFFSET += sizeof(TYPE);
+
+
+typedef uint64_t            elem_t;
+typedef uint32_t            length_t;
+typedef uint32_t            count_t;
+typedef unsigned short int  bool_t;
 
 static const char emptystr[] = "empty";
 
@@ -47,12 +58,12 @@ typedef enum {
 } ecirca_type;
 
 typedef struct {
-    length_t                begin;
-    elem_t                 *circa;
-    count_t                *count;
-    length_t                size;
-    unsigned short int      filled;
-    ecirca_type             type;
+    length_t     begin;
+    elem_t      *circa;
+    count_t     *count;
+    length_t     size;
+    bool_t       filled;
+    ecirca_type  type;
 } circactx;
 
 ErlNifResourceType* circa_type;
@@ -164,21 +175,6 @@ push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     return enif_make_tuple2(env, enif_make_atom(env, "ok"),
                                  enif_make_resource(env, ctx));
 }
-
-/*
-static ERL_NIF_TERM
-push_list(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-    circactx * ctx;
-    int listlen;
-
-    if (argc != 2) {
-        return enif_make_badarg(env);
-    }
-    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
-        return enif_make_badarg(env);
-    }
-
-}*/
 
 static ERL_NIF_TERM
 get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -300,6 +296,7 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     }
     else if (val != EMPTY_VAL && ctx->circa[idx] != EMPTY_VAL) {
         if (ctx->type == ecirca_max) {
+
             if (val > ctx->circa[idx]) {
                 ctx->circa[idx] = val;
             }
@@ -441,10 +438,9 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     headerlen = (sizeof(length_t) +
                  sizeof(length_t) +
-                 sizeof(unsigned short int) +
+                 sizeof(bool_t) +
                  sizeof(ecirca_type));
-    buflen =  (headerlen +
-               sizeof(elem_t) * ctx->size);
+    buflen = (headerlen + sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
         buflen += sizeof(count_t) * ctx->size;
     }
@@ -455,10 +451,10 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     memset(bin_data, 0x00, headerlen);
 
     i = 0;
-    bin_data[i] = ctx->size;    i += sizeof(length_t);
-    bin_data[i] = ctx->begin;   i += sizeof(length_t);
-    bin_data[i] = ctx->filled;  i += sizeof(unsigned short int);
-    bin_data[i] = ctx->type;    i += sizeof(ecirca_type);
+    PUT_BUF(bin_data, i, ctx->size, length_t);
+    PUT_BUF(bin_data, i, ctx->begin, length_t);
+    PUT_BUF(bin_data, i, ctx->filled, bool_t);
+    PUT_BUF(bin_data, i, ctx->type, ecirca_type);
 
     memcpy(bin_data + i, ctx->circa, ctx->size * sizeof(elem_t));
 
@@ -489,7 +485,7 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     headerlen = (sizeof(length_t) +
                  sizeof(length_t) +
-                 sizeof(unsigned short int) +
+                 sizeof(bool_t) +
                  sizeof(ecirca_type));
 
     if (bin.size < headerlen) {
@@ -500,13 +496,12 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     /* format is size-begin-filled-type-circa-[count]*/
     i = 0;
     ctx = enif_alloc_resource(circa_type, sizeof(circactx));
-    ctx->size   = bin.data[i]; i += sizeof(length_t);
-    ctx->begin  = bin.data[i]; i += sizeof(length_t);
-    ctx->filled = bin.data[i]; i += sizeof(unsigned short int);
-    ctx->type   = bin.data[i]; i += sizeof(ecirca_type);
+    GET_BUF(bin.data, i, ctx->size, length_t);
+    GET_BUF(bin.data, i, ctx->begin, length_t);
+    GET_BUF(bin.data, i, ctx->filled, bool_t);
+    GET_BUF(bin.data, i, ctx->type, ecirca_type);
 
-    buflen =  (headerlen +
-               sizeof(elem_t) * ctx->size);
+    buflen = (headerlen + sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
         buflen += sizeof(count_t) * ctx->size;
     }
