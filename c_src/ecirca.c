@@ -57,11 +57,11 @@ typedef struct {
 
 ErlNifResourceType* circa_type;
 
-/* additional functions */;
+/* additional functions */
 static int set_type(char *);
 
 /* get array index with respect to array bounds */
-length_t 
+length_t
 get_index(circactx * ctx, length_t i) {
     length_t index;
 
@@ -293,7 +293,7 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     }
 
     idx = get_index(ctx, i);
-    
+
     /* do something according to ecirca type */
     if (ctx->type == ecirca_last) {
         ctx->circa[idx] = val;
@@ -310,13 +310,13 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
             }
         }
         else if (ctx->type == ecirca_avg) {
-            if ((ctx->circa[idx] + val) / 2 >= val && 
+            if ((ctx->circa[idx] + val) / 2 >= val &&
                 (ctx->circa[idx] + val) / 2 >= ctx->circa[idx]) {
                 ctx->circa[idx] = (ctx->circa[idx] + val) / 2;
             }
         }
         else if (ctx->type == ecirca_sum) {
-            if (ctx->circa[idx] + val >= val && 
+            if (ctx->circa[idx] + val >= val &&
                 ctx->circa[idx] + val >= ctx->circa[idx]) {
                 ctx->circa[idx] = ctx->circa[idx] + val;
             }
@@ -324,9 +324,9 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     }
     else {
         return enif_make_tuple2(env, enif_make_atom(env, "error"),
-                                     enif_make_atom(env, "overflow"));      
+                                     enif_make_atom(env, "overflow"));
     }
-    
+
     return enif_make_tuple2(env, enif_make_atom(env, "ok"),
                                  enif_make_resource(env, ctx));
 }
