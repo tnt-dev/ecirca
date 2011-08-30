@@ -43,8 +43,8 @@
 -define(NULLVAL, 16#FFFFFFFFFFFFFFFF).
 
 -type res()         :: <<>>.
--type maybe_value() :: non_neg_integer() | empty.
 -type value()       :: non_neg_integer().
+-type maybe_value() :: value() | empty.
 -type nonneg()      :: non_neg_integer().
 -type ecirca_type() :: last | max | min | sum | avg.
 
