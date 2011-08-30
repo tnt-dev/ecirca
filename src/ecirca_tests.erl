@@ -122,3 +122,13 @@ get_subtest_val(C) ->
 %% -------------------------------------------------------------------
 
 
+save_test() ->
+    Res = {ok, [3, 2, 1, empty, empty]},
+    {ok, C} = ecirca:new(5, last),
+    ecirca:push(C, 1),
+    ecirca:push(C, 2),
+    ecirca:push(C, 3),
+    ?assertEqual(ecirca:slice(C, 1, 5), Res),
+    {ok, B} = ecirca:save(C),
+    {ok, NewC} = ecirca:load(B),
+    ?assertEqual(ecirca:slice(NewC, 1, 5), Res).
