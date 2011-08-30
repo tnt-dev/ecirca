@@ -36,7 +36,7 @@
 #define EMPTY_VAL       UINT32_MAX
 
 #define PUT_BUF(BUF, OFFSET, VAL) \
-    *((typeof(VAL)*)BUF + OFFSET) = VAL; OFFSET += sizeof(VAL);
+    *((typeof(VAL)*)(BUF + OFFSET)) = VAL; OFFSET += sizeof(VAL);
 #define GET_BUF(BUF, OFFSET, VAL) \
     VAL = *((typeof(VAL)*)(BUF + OFFSET)); OFFSET += sizeof(VAL);
 
