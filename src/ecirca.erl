@@ -42,7 +42,7 @@
 -define(LIBNAME, ?MODULE).
 -define(NULLVAL, 16#FFFFFFFFFFFFFFFF).
 
--type res()         :: <<>>.
+-type ecirca()      :: <<>>.
 -type value()       :: non_neg_integer().
 -type maybe_value() :: value() | empty.
 -type nonneg()      :: non_neg_integer().
@@ -55,42 +55,42 @@ test() ->
 	ecirca:push(T, 3),
 	ecirca:slice(T, 1, 2).
 
--spec new(pos_integer(), ecirca_type()) -> {ok, res()} |
+-spec new(pos_integer(), ecirca_type()) -> {ok, ecirca()} |
                                            {error, max_size}.
 new(_Size, _Type) -> ?STUB.
 
--spec set(res(), pos_integer(), maybe_value()) -> {ok, res()} |
-                                                  {error, not_found}.
+-spec set(ecirca(), pos_integer(), maybe_value()) -> {ok, ecirca()} |
+                                                       {error, not_found}.
 set(_Res, _I, _Val) -> ?STUB.
 
 %% TODO
--spec update(res(), pos_integer(), maybe_value()) -> {ok, res()} |
-                                                     {error, not_found}.
+-spec update(ecirca(), pos_integer(), maybe_value()) -> {ok, ecirca()} |
+                                                        {error, not_found}.
 update(Res, I, Val) ->
     case set(Res, I, Val) of
         {ok, _} -> {ok, Res};
         T -> T
     end.
 
--spec push(res(), maybe_value()) -> {ok, res()}.
+-spec push(ecirca(), maybe_value()) -> {ok, ecirca()}.
 push(_Res, _Val) -> ?STUB.
 
 %% TODO: all
--spec push_many(res(), nonneg(), maybe_value()) -> {ok, res()}.
+-spec push_many(ecirca(), nonneg(), maybe_value()) -> {ok, ecirca()}.
 push_many(Res, N, Val) ->
     [push(Res, Val) || _ <- lists:seq(1, N)],
     {ok, Res}.
 
 %% TODO: all
--spec push_list(res(), [maybe_value()]) -> {ok, res()}.
+-spec push_list(ecirca(), [maybe_value()]) -> {ok, ecirca()}.
 push_list(_Res, _Lst) -> ?STUB.
 
--spec get(res(), pos_integer()) -> {ok, maybe_value()} |
+-spec get(ecirca(), pos_integer()) -> {ok, maybe_value()} |
                                    {error, not_found}.
 get(_Res, _I) -> ?STUB.
 
--spec slice(res(), pos_integer(), pos_integer()) -> {ok, [maybe_value()]} |
-                                                    {error, slice_too_big}.
+-spec slice(ecirca(), pos_integer(), pos_integer()) -> {ok, [maybe_value()]} |
+                                                       {error, slice_too_big}.
 slice(_Res, _Start, _End) -> ?STUB.
 
 -spec max_size() -> {ok, pos_integer()}.
@@ -99,15 +99,15 @@ max_size() -> ?STUB.
 -spec max_slice() -> {ok, pos_integer()}.
 max_slice() -> ?STUB.
 
--spec size(res()) -> {ok, pos_integer()}.
+-spec size(ecirca()) -> {ok, pos_integer()}.
 size(_Res) -> ?STUB.
 
 %% TODO
--spec load(binary()) -> {ok, res()}.
+-spec load(binary()) -> {ok, ecirca()}.
 load(_Bin) -> ?STUB.
 
 %% TODO
--spec save(res()) -> {ok, binary()}.
+-spec save(ecirca()) -> {ok, binary()}.
 save(_Res) -> ?STUB.
 
 %% @doc Loads a NIF
