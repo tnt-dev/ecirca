@@ -3,7 +3,7 @@
 -include("ecirca.hrl").
 
 %% Init
--export([new/3]).
+-export([new/3, new/2]).
 %% Getters
 -export([get/2, slice/3]).
 %% Setters
@@ -27,7 +27,7 @@
 -type ecirca_type()       :: last | max | min | avg | sum.
 -type ecirca_value_size() :: small | medium | large.
 
-%% @doc Returns new ecirca. Takes size and type
+%% @doc Returns new ecirca. Takes size, type and value size
 -spec new(pos_integer(),
           ecirca_type(),
           ecirca_value_size()) -> {ok, ecirca()} |
@@ -38,6 +38,13 @@ new(Size, Type, medium) ->
     {ok, {ecirca, ecirca_medium:new(Size, Type), self(), medium}};
 new(Size, Type, large) ->
     {ok, {ecirca, ecirca_large:new(Size, Type), self(), large}}.
+
+%% @doc Returns new ecirca. Takes size and type only, assumes medium
+%%      value size
+-spec new(pos_integer(), ecirca_type()) -> {ok, ecirca()} |
+                                           {error, max_size}.
+new(Size, Type) ->
+    {ok, {ecirca, ecirca_medium:new(Size, Type), self(), medium}}.
 
 %% @doc Sets a value in ecirca. Returns {old value, new value} tuple
 -spec set(ecirca(), pos_integer(), maybe_value()) -> {ok, {maybe_value(),
