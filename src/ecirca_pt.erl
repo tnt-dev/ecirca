@@ -1,5 +1,5 @@
 %%% @doc This module contains function to glue atoms in compile time.
-%%%      The idea of replace_concat belongs to Zed from this SO question:
+%%%      The idea of it belongs to Zed from this SO question:
 %%%      http://stackoverflow.com/questions/1423054/
 %%%      erlang-is-there-an-equivalent-to-the-c-preprocessor-directive
 
