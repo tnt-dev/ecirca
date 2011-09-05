@@ -1,0 +1,2 @@
+-module(ecirca_medium).
+-include("ecirca_stubs.hrl").
