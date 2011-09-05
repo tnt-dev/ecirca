@@ -13,7 +13,7 @@
 %% Current circa properties
 -export([size/1]).
 %% Persistence
--export([load/2, save/1]).
+-export([load/2, load/1, save/1]).
 
 -export_types([res/0, maybe_value/0, value/0]).
 
@@ -109,6 +109,13 @@ load(Binary, medium) ->
 load(Binary, large) ->
     {ok, {ecirca, ecirca_large:load(Binary), self(), large}}.
 
+%% @doc Loads ecirca from binary, assumes medium size of value
+-spec load(binary()) -> {ok, ecirca()} |
+                        {error, wrong_ecirca_value_type} |
+                        {error, bad_binary} |
+                        {error, max_size}.
+load(Binary) ->
+    {ok, {ecirca, ecirca_medium:load(Binary), self(), medium}}.
 
 %% @doc Saves ecirca to binary
 -spec save(ecirca()) -> {ok, binary()}.
