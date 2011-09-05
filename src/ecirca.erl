@@ -52,34 +52,34 @@
           ecirca_type(),
           ecirca_value_size()) -> {ok, ecirca()} |
                                   {error, max_size}.
-new(Size, Type, small)  -> ecirca_small:new(Size, Type);
-new(Size, Type, medium) -> ecirca_medium:new(Size, Type);
-new(Size, Type, large)  -> ecirca_large:new(Size, Type).
+?WITH_VALUE_SIZE(new, Size, Type).
 
-%% @doc Sets a value in ecirca. Returns old value
--spec set(ecirca(), pos_integer(), maybe_value()) -> {ok, maybe_value()}.
+%% @doc Sets a value in ecirca. Returns {old value, new value} tuple
+-spec set(ecirca(), pos_integer(), maybe_value()) -> {ok, {maybe_value(),
+                                                           maybe_value()}}.
 ?WITH_ECIRCA(set, Position, Value).
 
 %% @doc Updates a value in ecirca, action is defined by type of ecirca.
-%%      Returns old value
--spec update(ecirca(), pos_integer(), maybe_value()) -> {ok, maybe_value()}.
+%%      Returns {old value, new value} tuple
+-spec update(ecirca(), pos_integer(), maybe_value()) -> {ok, {maybe_value(),
+                                                              maybe_value()}}.
 ?WITH_ECIRCA(update, Position, Value).
 
 %% @doc Push a value to ecirca
--spec push(ecirca(), maybe_value()) -> ok.
+-spec push(ecirca(), maybe_value()) -> ok | {error, overflow}.
 ?WITH_ECIRCA(push, Value).
 
 %% @doc Push a value to ecirca N times
 %% TODO: all
--spec push_many(ecirca(), nonneg(), maybe_value()) -> {ok, ecirca()}.
+-spec push_many(ecirca(), nonneg(), maybe_value()) -> ok.
 push_many(Res, N, Val) ->
     [push(Res, Val) || _ <- lists:seq(1, N)],
-    {ok, Res}.
+    ok.
 
 %% @doc Push a list to ecirca
 %% TODO: all
--spec push_list(ecirca(), [maybe_value()]) -> {ok, ecirca()}.
-push_list(_Ecirca, _Lst) -> {ok, <<>>}.
+-spec push_list(ecirca(), [maybe_value()]) -> ok.
+push_list(_Ecirca, _Lst) -> ok.
 
 %% @doc Returns a value
 -spec get(ecirca(), pos_integer()) -> {ok, maybe_value()}.
@@ -94,15 +94,11 @@ push_list(_Ecirca, _Lst) -> {ok, <<>>}.
 
 %% @doc Returns max allowed size of ecirca
 -spec max_size(ecirca_value_size()) -> {ok, pos_integer()}.
-max_size(small) -> ecirca_small:max_size();
-max_size(medium) -> ecirca_medium:max_size();
-max_size(large) -> ecirca_large:max_size().
+?WITH_VALUE_SIZE(max_size).
 
 %% @doc Returns max allowed size of slice
 -spec max_slice(ecirca_value_size()) -> {ok, pos_integer()}.
-max_slice(small) -> ecirca_small:max_slice();
-max_slice(medium) -> ecirca_medium:max_slice();
-max_slice(large) -> ecirca_medium:max_slice().
+?WITH_VALUE_SIZE(max_slice).
 
 %% @doc Returns a size of ecirca
 -spec size(ecirca()) -> {ok, pos_integer()}.
@@ -111,10 +107,10 @@ max_slice(large) -> ecirca_medium:max_slice().
 %% @doc Loads ecirca from binary
 -spec load(binary(),
            ecirca_value_size()) -> {ok, ecirca()} |
-                                   {error, wrong_ecirca_value_type}.
-load(Binary, small)  -> ecirca_small:load(Binary);
-load(Binary, medium) -> ecirca_medium:load(Binary);
-load(Binary, large)  -> ecirca_large:load(Binary).
+                                   {error, wrong_ecirca_value_type} |
+                                   {error, bad_binary} |
+                                   {error, max_size}.
+?WITH_VALUE_SIZE(load, Binary).
 
 %% @doc Saves ecirca to binary
 -spec save(ecirca()) -> {ok, binary()}.

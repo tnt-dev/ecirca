@@ -6,40 +6,72 @@
                                 false -> {error, cretor_only}
                             end).
 
--define(CLAUSE(NAME, TYPE),
+-define(WE_CLAUSE(NAME, TYPE),
         NAME({_, Res, Pid, TYPE}) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res))).
 
--define(CLAUSE(NAME, TYPE, A),
+-define(WE_CLAUSE(NAME, TYPE, A),
         NAME({_, Res, Pid, TYPE}, A) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res, A))).
 
--define(CLAUSE(NAME, TYPE, A, B),
+-define(WE_CLAUSE(NAME, TYPE, A, B),
         NAME({_, Res, Pid, TYPE}, A, B) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res, A, B))).
 
--define(CLAUSE(NAME, TYPE, A, B, C),
+-define(WE_CLAUSE(NAME, TYPE, A, B, C),
         NAME({_, Res, Pid, TYPE}, A, B, C) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res, A, B, C))).
 
 -define(WITH_ECIRCA(NAME),
-        ?CLAUSE(NAME, small);
-        ?CLAUSE(NAME, medium);
-        ?CLAUSE(NAME, large)).
+        ?WE_CLAUSE(NAME, small);
+        ?WE_CLAUSE(NAME, medium);
+        ?WE_CLAUSE(NAME, large)).
 
 -define(WITH_ECIRCA(NAME, A),
-        ?CLAUSE(NAME, small, A);
-        ?CLAUSE(NAME, medium, A);
-        ?CLAUSE(NAME, large, A)).
+        ?WE_CLAUSE(NAME, small, A);
+        ?WE_CLAUSE(NAME, medium, A);
+        ?WE_CLAUSE(NAME, large, A)).
 
 -define(WITH_ECIRCA(NAME, A, B),
-        ?CLAUSE(NAME, small, A, B);
-        ?CLAUSE(NAME, medium, A, B);
-        ?CLAUSE(NAME, large, A, B)).
+        ?WE_CLAUSE(NAME, small, A, B);
+        ?WE_CLAUSE(NAME, medium, A, B);
+        ?WE_CLAUSE(NAME, large, A, B)).
 
 -define(WITH_ECIRCA(NAME, A, B, C),
-        ?CLAUSE(NAME, small, A, B, C);
-        ?CLAUSE(NAME, medium, A, B, C);
-        ?CLAUSE(NAME, large, A, B, C)).
+        ?WE_CLAUSE(NAME, small, A, B, C);
+        ?WE_CLAUSE(NAME, medium, A, B, C);
+        ?WE_CLAUSE(NAME, large, A, B, C)).
+
+-define(WVS_CLAUSE(NAME, SIZE),
+        NAME(SIZE) -> (ecirca ++ SIZE):NAME()).
+
+-define(WVS_CLAUSE(NAME, SIZE, A),
+        NAME(A, SIZE) -> (ecirca ++ SIZE):NAME(A)).
+
+-define(WVS_CLAUSE(NAME, SIZE, A, B),
+        NAME(A, B, SIZE) -> (ecirca ++ SIZE):NAME(A, B)).
+
+-define(WVS_CLAUSE(NAME, SIZE, A, B, C),
+        NAME(A, B, C, SIZE) -> (ecirca ++ SIZE):NAME(A, B, C)).
+
+-define(WITH_VALUE_SIZE(NAME),
+        ?WVS_CLAUSE(NAME, small);
+        ?WVS_CLAUSE(NAME, medium);
+        ?WVS_CLAUSE(NAME, large)).
+
+-define(WITH_VALUE_SIZE(NAME, A),
+        ?WVS_CLAUSE(NAME, small, A);
+        ?WVS_CLAUSE(NAME, medium, A);
+        ?WVS_CLAUSE(NAME, large, A)).
+
+-define(WITH_VALUE_SIZE(NAME, A, B),
+        ?WVS_CLAUSE(NAME, small, A, B);
+        ?WVS_CLAUSE(NAME, medium, A, B);
+        ?WVS_CLAUSE(NAME, large, A, B)).
+
+-define(WITH_VALUE_SIZE(NAME, A, B, C),
+        ?WVS_CLAUSE(NAME, small, A, B, C);
+        ?WVS_CLAUSE(NAME, medium, A, B, C);
+        ?WVS_CLAUSE(NAME, large, A, B, C)).
 
 -define(GEN_STUB(FUN), gen_stub_fun() -> FUN).
