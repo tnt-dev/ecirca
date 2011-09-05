@@ -52,7 +52,12 @@
           ecirca_type(),
           ecirca_value_size()) -> {ok, ecirca()} |
                                   {error, max_size}.
-?WITH_VALUE_SIZE(new, Size, Type).
+new(Size, Type, small) ->
+    {ok, {ecirca, ecirca_small:new(Size, Type), self(), small}};
+new(Size, Type, medium) ->
+    {ok, {ecirca, ecirca_medium:new(Size, Type), self(), medium}};
+new(Size, Type, large) ->
+    {ok, {ecirca, ecirca_large:new(Size, Type), self(), large}}.
 
 %% @doc Sets a value in ecirca. Returns {old value, new value} tuple
 -spec set(ecirca(), pos_integer(), maybe_value()) -> {ok, {maybe_value(),
@@ -110,7 +115,13 @@ push_list(_Ecirca, _Lst) -> ok.
                                    {error, wrong_ecirca_value_type} |
                                    {error, bad_binary} |
                                    {error, max_size}.
-?WITH_VALUE_SIZE(load, Binary).
+load(Binary, small) ->
+    {ok, {ecirca, ecirca_small:load(Binary), self(), small}};
+load(Binary, medium) ->
+    {ok, {ecirca, ecirca_medium:load(Binary), self(), medium}};
+load(Binary, large) ->
+    {ok, {ecirca, ecirca_large:load(Binary), self(), large}}.
+
 
 %% @doc Saves ecirca to binary
 -spec save(ecirca()) -> {ok, binary()}.

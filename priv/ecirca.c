@@ -175,7 +175,7 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     ret = enif_make_resource(env, ctx);
     enif_release_resource(ctx);
 
-    return TUPLE2(ATOM_OK, ret);
+    return ret;
 }
 
 static ERL_NIF_TERM
@@ -576,7 +576,7 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     ret = enif_make_resource(env, ctx);
     enif_release_resource(ctx);
 
-    return TUPLE2(ATOM_OK, ret);
+    return ret;
 }
 
 /* for setting ecirca type */

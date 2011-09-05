@@ -7,19 +7,19 @@
                             end).
 
 -define(WE_CLAUSE(NAME, TYPE),
-        NAME({_, Res, Pid, TYPE}) ->
+        NAME({ecirca, Res, Pid, TYPE}) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res))).
 
 -define(WE_CLAUSE(NAME, TYPE, A),
-        NAME({_, Res, Pid, TYPE}, A) ->
+        NAME({ecirca, Res, Pid, TYPE}, A) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res, A))).
 
 -define(WE_CLAUSE(NAME, TYPE, A, B),
-        NAME({_, Res, Pid, TYPE}, A, B) ->
+        NAME({ecirca, Res, Pid, TYPE}, A, B) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res, A, B))).
 
 -define(WE_CLAUSE(NAME, TYPE, A, B, C),
-        NAME({_, Res, Pid, TYPE}, A, B, C) ->
+        NAME({ecirca, Res, Pid, TYPE}, A, B, C) ->
                ?CHECK_PID(Pid, (ecirca ++ TYPE):NAME(Res, A, B, C))).
 
 -define(WITH_ECIRCA(NAME),
