@@ -84,6 +84,7 @@ ErlNifResourceType* circa_type;
 
 /* additional functions */
 static int set_type(char*, ecirca_type*);
+static ERL_NIF_TERM maybe_value(ErlNifEnv*, elem_t);
 
 /* get array index with respect to array bounds */
 length_t
@@ -241,10 +242,10 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return BADARG;
     }
-    if (i > ctx->size || i == 0) {
+    if (!ERL_GET_SIZE(env, argv[1], &i)) {
         return BADARG;
     }
-    if (!ERL_GET_SIZE(env, argv[1], &i)) {
+    if (i > ctx->size || i == 0) {
         return BADARG;
     }
     if (!ERL_GET_ELEM(env, argv[2], &val_big)) {
@@ -270,8 +271,8 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     ctx->circa[idx] = val;
     new_val = ctx->circa[idx];
 
-    return TUPLE2(ATOM_OK, TUPLE2(ERL_MAKE_ELEM(env, old_val),
-                                  ERL_MAKE_ELEM(env, new_val)));
+    return TUPLE2(ATOM_OK, TUPLE2(maybe_value(env, old_val),
+                                  maybe_value(env, new_val)));
 }
 
 static ERL_NIF_TERM
@@ -350,8 +351,8 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     new_val = ctx->circa[idx];
 
-    return TUPLE2(ATOM_OK, TUPLE2(ERL_MAKE_ELEM(env, old_val),
-                                  ERL_MAKE_ELEM(env, new_val)));
+    return TUPLE2(ATOM_OK, TUPLE2(maybe_value(env, old_val),
+                                  maybe_value(env, new_val)));
 }
 
 static ERL_NIF_TERM
@@ -578,6 +579,15 @@ set_type(char* str, ecirca_type* type) {
         *type = ecirca_last; return 1;
     }
     return 0;
+}
+
+static ERL_NIF_TERM
+maybe_value(ErlNifEnv* env, elem_t v) {
+    if(v == EMPTY_VAL) {
+        return ATOM("empty");
+    } else {
+        return ERL_MAKE_ELEM(env, v);
+    }
 }
 
 static ErlNifFunc functions[] =

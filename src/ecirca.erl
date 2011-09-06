@@ -9,7 +9,7 @@
 %% Setters
 -export([set/3, update/3, push/2, push_many/3, push_list/2]).
 %% Compile-time constants
--export([max_slice/1, max_size/1]).
+-export([max_slice/0, max_size/0]).
 %% Current circa properties
 -export([size/1]).
 %% Persistence
@@ -85,12 +85,12 @@ push_list(_Ecirca, _Lst) -> ok.
 ?WITH_ECIRCA(slice, Start, End).
 
 %% @doc Returns max allowed size of ecirca
--spec max_size(ecirca_value_size()) -> {ok, pos_integer()}.
-?WITH_VALUE_SIZE(max_size).
+-spec max_size() -> {ok, pos_integer()}.
+max_size() -> ecirca_medium:max_size().
 
 %% @doc Returns max allowed size of slice
--spec max_slice(ecirca_value_size()) -> {ok, pos_integer()}.
-?WITH_VALUE_SIZE(max_slice).
+-spec max_slice() -> {ok, pos_integer()}.
+max_slice() -> ecirca_medium:max_slice().
 
 %% @doc Returns a size of ecirca
 -spec size(ecirca()) -> {ok, pos_integer()}.

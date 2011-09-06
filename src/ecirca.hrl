@@ -25,22 +25,28 @@
 -define(WITH_ECIRCA(NAME),
         ?WE_CLAUSE(NAME, small);
         ?WE_CLAUSE(NAME, medium);
-        ?WE_CLAUSE(NAME, large)).
+        ?WE_CLAUSE(NAME, large);
+        NAME(_) -> error(badarg)).
 
 -define(WITH_ECIRCA(NAME, A),
         ?WE_CLAUSE(NAME, small, A);
         ?WE_CLAUSE(NAME, medium, A);
-        ?WE_CLAUSE(NAME, large, A)).
+        ?WE_CLAUSE(NAME, large, A);
+        NAME(_, _) -> error(badarg)).
 
 -define(WITH_ECIRCA(NAME, A, B),
         ?WE_CLAUSE(NAME, small, A, B);
         ?WE_CLAUSE(NAME, medium, A, B);
-        ?WE_CLAUSE(NAME, large, A, B)).
+        ?WE_CLAUSE(NAME, large, A, B);
+        NAME(_, _, _) -> error(badarg)).
+
 
 -define(WITH_ECIRCA(NAME, A, B, C),
         ?WE_CLAUSE(NAME, small, A, B, C);
         ?WE_CLAUSE(NAME, medium, A, B, C);
-        ?WE_CLAUSE(NAME, large, A, B, C)).
+        ?WE_CLAUSE(NAME, large, A, B, C);
+        NAME(_, _, _, _) -> error(badarg)).
+
 
 -define(WVS_CLAUSE(NAME, SIZE),
         NAME(SIZE) -> (ecirca ++ SIZE):NAME()).
