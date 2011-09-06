@@ -113,6 +113,3 @@ save_test() ->
 
 %% -------------------------------------------------------------------
 
-proper_test_() ->
-    {timeout, 10000,
-     ?_assertEqual([], proper:module(ecirca_props, [{to_file, user}]))}.
