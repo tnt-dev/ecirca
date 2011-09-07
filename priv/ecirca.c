@@ -469,7 +469,7 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     memcpy(bin_data + i, ctx->circa, ctx->size * sizeof(elem_t));
 
     if (ctx->type == ecirca_avg) {
-        i += ctx->size * sizeof(elem_t);
+        i += (ctx->size * sizeof(elem_t));
         memcpy(bin_data + i, ctx->count, ctx->size * sizeof(count_t));
     }
 
