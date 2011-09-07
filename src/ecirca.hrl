@@ -3,7 +3,7 @@
 -define(STUB, not_loaded(?LINE)).
 -define(CHECK_PID(PID, DO), case self() == PID of
                                 true -> DO;
-                                false -> {error, cretor_only}
+                                false -> {error, creator_only}
                             end).
 
 -define(WE_CLAUSE(NAME, TYPE),
