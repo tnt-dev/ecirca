@@ -17,8 +17,8 @@
 
 -export_types([res/0, maybe_value/0, value/0]).
 
-%% NOTE: changing of ecirca internal format will break parse transform
--opaque ecirca()          :: {ecirca, resource(),
+%% NOTE: changing of ecirca internal format will break macroses in ecirca.hrl
+-opaque ecirca()          :: {ecirca, reference(), resource(),
                               pid(), ecirca_value_size()}.
 -type resource()          :: <<>>.
 -type value()             :: non_neg_integer().
@@ -27,24 +27,23 @@
 -type ecirca_type()       :: last | max | min | avg | sum.
 -type ecirca_value_size() :: small | medium | large.
 
+%% @doc Returns new ecirca. Takes size and type only, assumes medium
+%%      value size
+-spec new(pos_integer(), ecirca_type()) -> {ok, ecirca()} |
+                                           {error, max_size}.
+new(Size, Type) -> new(Size, Type, medium).
+
 %% @doc Returns new ecirca. Takes size, type and value size
 -spec new(pos_integer(),
           ecirca_type(),
           ecirca_value_size()) -> {ok, ecirca()} |
                                   {error, max_size}.
 new(Size, Type, small) ->
-    {ok, {ecirca, ecirca_small:new(Size, Type), self(), small}};
+    make_ecirca(ecirca_small:new(Size, Type), small);
 new(Size, Type, medium) ->
-    {ok, {ecirca, ecirca_medium:new(Size, Type), self(), medium}};
+    make_ecirca(ecirca_medium:new(Size, Type), medium);
 new(Size, Type, large) ->
-    {ok, {ecirca, ecirca_large:new(Size, Type), self(), large}}.
-
-%% @doc Returns new ecirca. Takes size and type only, assumes medium
-%%      value size
--spec new(pos_integer(), ecirca_type()) -> {ok, ecirca()} |
-                                           {error, max_size}.
-new(Size, Type) ->
-    {ok, {ecirca, ecirca_medium:new(Size, Type), self(), medium}}.
+    make_ecirca(ecirca_large:new(Size, Type), large).
 
 %% @doc Sets a value in ecirca. Returns {old value, new value} tuple
 -spec set(ecirca(), pos_integer(), maybe_value()) -> {ok, {maybe_value(),
@@ -96,6 +95,13 @@ max_slice() -> ecirca_medium:max_slice().
 -spec size(ecirca()) -> {ok, pos_integer()}.
 ?WITH_ECIRCA(size).
 
+%% @doc Loads ecirca from binary, assumes medium size of value
+-spec load(binary()) -> {ok, ecirca()} |
+                        {error, wrong_ecirca_value_type} |
+                        {error, bad_binary} |
+                        {error, max_size}.
+load(Binary) -> load(Binary, medium).
+
 %% @doc Loads ecirca from binary
 -spec load(binary(),
            ecirca_value_size()) -> {ok, ecirca()} |
@@ -103,21 +109,18 @@ max_slice() -> ecirca_medium:max_slice().
                                    {error, bad_binary} |
                                    {error, max_size}.
 load(Binary, small) ->
-    {ok, {ecirca, ecirca_small:load(Binary), self(), small}};
+    make_ecirca(ecirca_small:load(Binary), small);
 load(Binary, medium) ->
-    {ok, {ecirca, ecirca_medium:load(Binary), self(), medium}};
+    make_ecirca(ecirca_medium:load(Binary), medium);
 load(Binary, large) ->
-    {ok, {ecirca, ecirca_large:load(Binary), self(), large}}.
-
-%% @doc Loads ecirca from binary, assumes medium size of value
--spec load(binary()) -> {ok, ecirca()} |
-                        {error, wrong_ecirca_value_type} |
-                        {error, bad_binary} |
-                        {error, max_size}.
-load(Binary) ->
-    {ok, {ecirca, ecirca_medium:load(Binary), self(), medium}}.
+    make_ecirca(ecirca_large:load(Binary), large).
 
 %% @doc Saves ecirca to binary
 -spec save(ecirca()) -> {ok, binary()}.
 ?WITH_ECIRCA(save).
 
+%%% Internal functions
+
+-spec make_ecirca(resource(), ecirca_value_size()) -> ecirca().
+make_ecirca(Res, ValueSize) ->
+    {ok, {ecirca, make_ref(), Res, self(), ValueSize}}.
