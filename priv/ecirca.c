@@ -35,8 +35,8 @@ typedef uint32_t        elem_t;
 typedef uint64_t        elem_t;
 #endif
 
-#define ERL_MAKE_SIZE   enif_make_uint
-#define ERL_GET_SIZE    enif_get_uint
+#define ERL_MAKE_SIZE   enif_make_uint64
+#define ERL_GET_SIZE    enif_get_uint64
 #define MAX_SLICE       1000000
 #define MAX_SIZE        1000000
 
@@ -56,8 +56,8 @@ typedef uint64_t        elem_t;
 #define GET_BUF(BUF, OFFSET, VAL) \
     VAL = *((typeof(VAL)*)(BUF + OFFSET)); OFFSET += sizeof(VAL);
 
-typedef uint32_t            length_t;
-typedef uint32_t            count_t;
+typedef uint64_t            length_t;
+typedef uint64_t            count_t;
 typedef unsigned short int  bool_t;
 
 static const char emptystr[] = "empty";
@@ -85,19 +85,7 @@ ErlNifResourceType* circa_type;
 /* additional functions */
 static int set_type(char*, ecirca_type*);
 static ERL_NIF_TERM maybe_value(ErlNifEnv*, elem_t);
-
-/* get array index with respect to array bounds */
-length_t
-get_index(circactx * ctx, length_t i) {
-    length_t index;
-
-    if (i > ctx->begin) {
-        index = ctx->size + ctx->begin - i;
-    } else {
-        index = ctx->begin - i;
-    }
-    return index;
-}
+static length_t get_index(circactx*, length_t);
 
 /* ecirca destructor */
 void
@@ -397,14 +385,11 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     for (a = 0, i = start; i != end + incr; i += incr) {
         idx = get_index(ctx, i);
-        if (!ctx->filled && idx >= ctx->begin) {
+
+        if (ctx->circa[idx] == EMPTY_VAL) {
             terms[a++] = atom_empty;
         } else {
-            if (ctx->circa[idx] == EMPTY_VAL) {
-                terms[a++] = atom_empty;
-            } else {
-                terms[a++] = ERL_MAKE_ELEM(env, ctx->circa[idx]);
-            }
+            terms[a++] = ERL_MAKE_ELEM(env, ctx->circa[idx]);
         }
     }
 
@@ -589,6 +574,20 @@ maybe_value(ErlNifEnv* env, elem_t v) {
         return ERL_MAKE_ELEM(env, v);
     }
 }
+
+/* get array index with respect to array bounds */
+static length_t
+get_index(circactx * ctx, length_t i) {
+    length_t index;
+
+    if (i > ctx->begin) {
+        index = ctx->size + ctx->begin - i;
+    } else {
+        index = ctx->begin - i;
+    }
+    return index;
+}
+
 
 static ErlNifFunc functions[] =
 {
