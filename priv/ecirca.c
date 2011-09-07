@@ -76,7 +76,6 @@ typedef struct {
     elem_t      *circa;
     count_t     *count;
     length_t     size;
-    bool_t       filled;
     ecirca_type  type;
 } circactx;
 
@@ -136,7 +135,6 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     ctx->begin  = 0;
     ctx->circa  = enif_alloc(sizeof(elem_t) * size);
     ctx->size   = size;
-    ctx->filled = 0;
     ctx->type   = type;
 
     memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
@@ -179,7 +177,6 @@ push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     if (++ctx->begin >= ctx->size + 1) {
         ctx->begin  = 1;
-        ctx->filled = 1;
     }
 
     ctx->circa[ctx->begin - 1] = val;
@@ -446,7 +443,6 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     headerlen = (sizeof(length_t) +
                  sizeof(length_t) +
-                 sizeof(bool_t) +
                  sizeof(ecirca_type) +
                  sizeof(unsigned int));
     buflen = (headerlen + sizeof(elem_t) * ctx->size);
@@ -456,13 +452,12 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     bin_data = enif_make_new_binary(env, buflen, &ret);
 
-    /* format is size-begin-filled-type-value_type-circa-[count]*/
+    /* format is size-begin-type-value_type-circa-[count]*/
     memset(bin_data, 0x00, headerlen);
 
     i = 0;
     PUT_BUF(bin_data, i, ctx->size);
     PUT_BUF(bin_data, i, ctx->begin);
-    PUT_BUF(bin_data, i, ctx->filled);
     PUT_BUF(bin_data, i, ctx->type);
     PUT_BUF(bin_data, i, BITNESS);
 
@@ -496,7 +491,6 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     headerlen = (sizeof(length_t) +
                  sizeof(length_t) +
-                 sizeof(bool_t) +
                  sizeof(ecirca_type) +
                  sizeof(unsigned int));
 
@@ -504,12 +498,11 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         return TUPLE2(ATOM_ERROR, ATOM("bad_binary"));
     }
 
-    /* format is size-begin-filled-type-circa-[count]*/
+    /* format is size-begin-type-circa-[count]*/
     i = 0;
     ctx = enif_alloc_resource(circa_type, sizeof(circactx));
     GET_BUF(bin.data, i, ctx->size);
     GET_BUF(bin.data, i, ctx->begin);
-    GET_BUF(bin.data, i, ctx->filled);
     GET_BUF(bin.data, i, ctx->type);
     GET_BUF(bin.data, i, value_type);
 
