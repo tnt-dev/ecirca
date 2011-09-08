@@ -21,9 +21,10 @@ max_value(large)  -> 576460752303423487.
 
 ecirca_type() -> elements(?TYPES).
 value_size() -> elements(?VALUE_SIZES).
-ecirca_size() ->
+ecirca_size(short) -> proper_types:integer(1, 1000);
+ecirca_size(full) ->
     {ok, M} = ecirca:max_size(),
-    proper_types:integer(0, M).
+    proper_types:integer(1, M).
 %slice_size() ->
 %    {ok, M} = ecirca:slice_size(),
 %    proper_types:integer(0, M).
@@ -31,6 +32,7 @@ value(S) ->
     Max = max_value(S#state.value_size),
     proper_types:union([proper_types:integer(0, Max), empty]).
 position(S) ->  proper_types:integer(1, S#state.size).
+%position(_S) ->  proper_types:integer(1, 10).
 ecirca(S) -> S#state.ecirca.
 
 initial_state() ->
@@ -46,24 +48,30 @@ initial_state(Size, Type, ValueSize) ->
 command(#state{ecirca = undefined}=S) ->
     {call, ?SERVER, new, [S#state.size, S#state.type, S#state.value_size]};
 command(S) ->
-    oneof([{call, ?SERVER, set, [ecirca(S), position(S), value(S)]},
-           {call, ?SERVER, get, [ecirca(S), position(S)]},
-           {call, ?SERVER, slice, [ecirca(S), position(S), position(S)]}]).
+    frequency(
+      [{50, {call, ?SERVER, set, [ecirca(S), position(S), value(S)]}},
+       {50, {call, ?SERVER, get, [ecirca(S), position(S)]}},
+       {50, {call, ?SERVER, slice, [ecirca(S), position(S), position(S)]}},
+       {50, {call, ?SERVER, push, [ecirca(S), value(S)]}},
+       {5, {call, ?SERVER, size, [ecirca(S)]}},
+       {3, {call, ?SERVER, max_slice, []}},
+       {3, {call, ?SERVER, max_size, []}}]).
 
 precondition(_, _) -> true.
 
 next_state(S, V, {call, _Mod, new, _Args}) ->
     S#state{ecirca = {call, erlang, element, [2, V]}};
-next_state(S, _V, {call, _Mod, get, _Args}) ->
-    S;
-next_state(S, _V, {call, _Mod, slice, _Args}) ->
-    S;
 next_state(S, _V, {call, _Mod, set, [_, Pos, Val]}) ->
-    S#state{elements = array:set(Pos, Val, S#state.elements)}.
+    S#state{elements = array:set(Pos - 1, Val, S#state.elements)};
+next_state(S, _V, {call, _Mod, push, [_, Val]}) ->
+    Lst = [Val | array:to_list(S#state.elements)],
+    LstTrimmed = lists:sublist(Lst, S#state.size),
+    S#state{elements = array:from_list(LstTrimmed, empty)};
+next_state(S, _, _) -> S.
 
 %% returned value should be equal to one that we've passed
 postcondition(S, {call, _Mod, get, [_, Pos]}, Res) ->
-    Res =:= {ok, array:get(Pos, S#state.elements)};
+    Res =:= {ok, array:get(Pos - 1, S#state.elements)};
 %% returned ecirca should have properties that was requested
 postcondition(_S, {call, _Mod, new, [Size, _Type, ValueSize]}, Res) ->
     {ok, Ecirca} = Res,
@@ -71,20 +79,35 @@ postcondition(_S, {call, _Mod, new, [Size, _Type, ValueSize]}, Res) ->
     {ok, RealSize} = ecirca:size(Ecirca),
     (Size == RealSize andalso
      Pid == self());
+%% slice should be right slice
 postcondition(S, {call, _Mod, slice, [_, Pos1, Pos2]}, Res) ->
     {ok, Slice} = Res,
     Idxs = lists:seq(min(Pos1, Pos2), max(Pos1, Pos2)),
-    PreRefSlice = [array:get(I, S#state.elements) || I <- Idxs],
+    PreRefSlice = [array:get(I-1, S#state.elements) || I <- Idxs],
     RefSlice = case Pos2 < Pos1 of
                    true  -> lists:reverse(PreRefSlice);
                    false -> PreRefSlice
                end,
     RefSlice =:= Slice;
+%% value returned by set should be {ok, {OldValue, NewValue}}
+postcondition(_S, {call, _Mod, set, [_, _, _]}, _Res) ->
+    true; % should check old-new value tuple
+postcondition(_S, {call, _Mod, push, [_, _]}, Res) ->
+    Res =:= ok;
+postcondition(S, {call, _Mod, size, [_]}, Res) ->
+    {ok, Size} = Res,
+    Size == S#state.size;
+postcondition(_S, {call, _Mod, max_slice, []}, Res) ->
+    {ok, SliceSize} = Res,
+    is_integer(SliceSize);
+postcondition(_S, {call, _Mod, max_size, []}, Res) ->
+    {ok, MaxSize} = Res,
+    is_integer(MaxSize);
 postcondition(_, _, _) -> true.
 
 
 prop_main() ->
-    ?FORALL({Size, Type, ValueSize}, {ecirca_size(),
+    ?FORALL({Size, Type, ValueSize}, {ecirca_size(short),
                                       noshrink(ecirca_type()),
                                       noshrink(value_size())},
             ?FORALL(Cmds, commands(?MODULE,
@@ -93,13 +116,13 @@ prop_main() ->
                         {H,S,Res} = run_commands(?MODULE, Cmds),
                         ?WHENFAIL(
                            io:format(user, "History: ~s\nState: ~s\nRes: ~p\n",
-                                     [io_lib_pretty:print(H, 1, 80, 20),
-                                      io_lib_pretty:print(S, 1, 80, 20),
+                                     [io_lib_pretty:print(H, 1, 80, 30),
+                                      io_lib_pretty:print(S, 1, 80, 30),
                                       Res]),
-                           collect(Type, Res =:= ok))
+                           aggregate(command_names(Cmds), Res =:= ok))
                     end)).
 
 proper_test_() ->
     {timeout, 600,
      ?_assertEqual([], proper:module(ecirca_props, [{to_file, user},
-                                                    {numtests, 500}]))}.
+                                                    {numtests, 1000}]))}.
