@@ -2,7 +2,7 @@
 -compile(export_all).
 -on_load(nif_init/0).
 
-new(_, _)       -> ?STUB.
+new(_, _, _)    -> ?STUB.
 set(_, _, _)    -> ?STUB.
 update(_, _, _) -> ?STUB.
 push(_, _)      -> ?STUB.

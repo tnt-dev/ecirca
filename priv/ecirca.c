@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <math.h>
 #include <netinet/in.h>
 #include "erl_nif.h"
 
@@ -9,6 +10,7 @@
 #define ERL_GET_ELEM    enif_get_uint64
 #define MAX_VAL         4096
 #define EMPTY_VAL       UINT16_MAX
+#define ROUND           round
 #define BITNESS_NAME    "small"
 #define INIT_STR        ERL_NIF_INIT(ecirca_small, functions, &init, \
                                          NULL, NULL, NULL)
@@ -19,6 +21,7 @@ typedef uint16_t        elem_t;
 #define ERL_GET_ELEM    enif_get_uint64
 #define MAX_VAL         134217728
 #define EMPTY_VAL       UINT32_MAX
+#define ROUND           lround
 #define BITNESS_NAME    "medium"
 #define INIT_STR        ERL_NIF_INIT(ecirca_medium, functions, &init, \
                                          NULL, NULL, NULL)
@@ -27,8 +30,11 @@ typedef uint32_t        elem_t;
 #if BITNESS == 60
 #define ERL_MAKE_ELEM   enif_make_uint64
 #define ERL_GET_ELEM    enif_get_uint64
+/* bigger vals will be represented as bigints in erlang VM */
+/* TODO: add check for this value in all functions */
 #define MAX_VAL         576460752303423487
 #define EMPTY_VAL       UINT64_MAX
+#define ROUND           llround
 #define BITNESS_NAME    "large"
 #define INIT_STR        ERL_NIF_INIT(ecirca_large, functions, &init, \
                                          NULL, NULL, NULL)
@@ -47,17 +53,13 @@ typedef uint64_t        elem_t;
 #define TUPLE2(A, B)    enif_make_tuple2(env, A, B)
 #define ATOM(A)         enif_make_atom(env, A)
 
-
-/* bigger vals will be represented as bigints in erlang VM */
-/* TODO: add check for this value in all functions */
-
 #define PUT_BUF(BUF, OFFSET, VAL) \
     *((typeof(VAL)*)(BUF + OFFSET)) = VAL; OFFSET += sizeof(VAL);
 #define GET_BUF(BUF, OFFSET, VAL) \
     VAL = *((typeof(VAL)*)(BUF + OFFSET)); OFFSET += sizeof(VAL);
 
 typedef uint64_t            length_t;
-typedef uint64_t            count_t;
+typedef double              avg_t;
 typedef unsigned short int  bool_t;
 
 static const char emptystr[] = "empty";
@@ -71,26 +73,49 @@ typedef enum {
     ecirca_sum
 } ecirca_type;
 
+typedef enum {
+    atom_strong,
+    atom_weak
+} atom_type;
+
+typedef enum {
+    vtn_ok,
+    vtn_error,
+    vtn_atom
+} vtn_ret;
+
 typedef struct {
-    length_t     begin;
-    elem_t      *circa;
-    count_t     *count;
-    length_t     size;
-    ecirca_type  type;
+    length_t       begin;
+    elem_t*        circa;
+    avg_t*         avg;
+    length_t       size;
+    ecirca_type    type;
+    ERL_NIF_TERM   atoms[16];
+    atom_type      atom_types[16];
 } circactx;
 
 ErlNifResourceType* circa_type;
 
 /* additional functions */
 static int set_type(char*, ecirca_type*);
-static ERL_NIF_TERM maybe_value(ErlNifEnv*, elem_t);
 static length_t get_index(circactx*, length_t);
+static ERL_NIF_TERM number_to_value(ErlNifEnv*, circactx*, length_t);
+static vtn_ret value_to_number(ErlNifEnv*, circactx*, ERL_NIF_TERM,
+                               elem_t*, ERL_NIF_TERM*);
+static int update_value(ErlNifEnv*, circactx*, length_t, elem_t, ERL_NIF_TERM*);
+static elem_t encode_atom(elem_t);
+static int is_encoded_atom(elem_t);
+static int is_strong_atom(circactx*, elem_t);
 
 /* ecirca destructor */
 void
 circactx_dtor(ErlNifEnv* env, void* obj) {
-    circactx * ctx = (circactx *) obj;
+    circactx* ctx = (circactx *) obj;
+
     enif_free(ctx->circa);
+    if (ctx->type == ecirca_avg) {
+        enif_free(ctx->avg);
+    }
 }
 
 /* creating resource type on load */
@@ -106,38 +131,69 @@ init(ErlNifEnv* env, void** priv, ERL_NIF_TERM info) {
 
 static ERL_NIF_TERM
 new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-    circactx * ctx;
-    ERL_NIF_TERM ret;
-    length_t size;
-    char typestr[5];
-    ecirca_type type;
+    const ERL_NIF_TERM*   pair;
+    circactx*       ctx;
+    ERL_NIF_TERM    ret, head, tail, elem;
+    length_t        size;
+    char            typestr[5];
+    ecirca_type     type;
+    unsigned int    i, len;
+    int             arity;
 
-    if (argc != 2) {
-        return BADARG;
-    }
-    if (!ERL_GET_SIZE(env, argv[0], &size)) {
-        return BADARG;
-    }
-    if (size == 0) {
+    if (argc != 3
+        || !ERL_GET_SIZE(env, argv[0], &size)
+        || size == 0
+        || !enif_get_atom(env, argv[1], typestr, 5, ERL_NIF_LATIN1)
+        || !set_type(typestr, &type)
+        || !enif_get_list_length(env, argv[2], &len)
+        || len > 14) {
         return BADARG;
     }
     if (size > MAX_SIZE) {
         return TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
     }
-    if (!enif_get_atom(env, argv[1], typestr, 5, ERL_NIF_LATIN1)) {
-		return BADARG;
-	}
-    if (!set_type(typestr, &type)) {
-        return BADARG;
-    }
 
     ctx         = enif_alloc_resource(circa_type, sizeof(circactx));
     ctx->begin  = 0;
     ctx->circa  = enif_alloc(sizeof(elem_t) * size);
+    memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
     ctx->size   = size;
     ctx->type   = type;
 
-    memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
+    ctx->atoms[15]      = ATOM("empty");
+    ctx->atom_types[15] = atom_weak;
+    i = 1;
+    head = argv[2];
+    while (enif_get_list_cell(env, head, &elem, &tail)) {
+        if (!enif_get_tuple(env, elem, &arity, &pair)
+            || arity != 2
+            || !enif_is_atom(env, pair[0])
+            || !enif_is_atom(env, pair[1])) {
+            return BADARG;
+        }
+        if (!enif_compare(ATOM("weak"), pair[1])) {
+            ctx->atom_types[i] = atom_weak;
+        } else if (!enif_compare(ATOM("strong"), pair[1])) {
+            ctx->atom_types[i] = atom_strong;
+        } else {
+            return BADARG;
+        }
+        ctx->atoms[i] = pair[0];
+        i++;
+        head = tail;
+    }
+    /* fill the rest with "empty" */
+    for (; i < 15; i++) {
+        ctx->atoms[i] = ATOM("empty");
+        ctx->atom_types[i] = atom_weak;
+    }
+
+    if (type == ecirca_avg) {
+        ctx->avg = enif_alloc(sizeof(avg_t) * size);
+        memset(ctx->avg, 0x00, sizeof(avg_t) * size);
+    } else {
+        ctx->avg = NULL;
+    }
 
     ret = enif_make_resource(env, ctx);
     enif_release_resource(ctx);
@@ -148,38 +204,40 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 static ERL_NIF_TERM
 push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    char emptycmp[6];
     elem_t val;
-    uint64_t val_big;
+    length_t idx;
+    ERL_NIF_TERM ret;
 
     if (argc != 2) {
         return BADARG;
-    }
-    if (!ERL_GET_ELEM(env, argv[1], &val_big)) {
-        if (!enif_get_atom(env, argv[1], emptycmp, 6, ERL_NIF_LATIN1)) {
-            return BADARG;
-        } else {
-            if (!strcmp(emptycmp, emptystr)) {
-                val = EMPTY_VAL;
-            } else {
-                return BADARG;
-            }
-        }
-    } else {
-        if (val_big > MAX_VAL) {
-            return TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
-        }
-        val = (elem_t) val_big;
     }
     if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
         return BADARG;
     }
 
     if (++ctx->begin >= ctx->size + 1) {
-        ctx->begin  = 1;
+        ctx->begin = 1;
     }
+    idx = ctx->begin - 1;
 
-    ctx->circa[ctx->begin - 1] = val;
+    switch (value_to_number(env, ctx, argv[1], &val, &ret)) {
+        case vtn_error: return ret;
+        case vtn_atom:
+            val = encode_atom(val);
+            if (ctx->type == ecirca_avg) {
+                ctx->avg[idx] = 0;
+            }
+            ctx->circa[ctx->begin - 1] = val;
+            break;
+        case vtn_ok:
+            if (ctx->type == ecirca_avg) {
+                ctx->avg[idx] = (avg_t) val;
+                ctx->circa[idx] = 1;
+            } else {
+                ctx->circa[ctx->begin - 1] = val;
+            }
+            break;
+    }
 
     return ATOM_OK;
 }
@@ -190,154 +248,90 @@ get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     length_t i, idx;
     ERL_NIF_TERM ret;
 
-    if (argc != 2) {
-        return BADARG;
-    }
-    if (!ERL_GET_SIZE(env, argv[1], &i)) {
-        return BADARG;
-    }
-    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
-        return BADARG;
-    }
-
-    if (i > ctx->size || i == 0) {
+    if (argc != 2
+        || !ERL_GET_SIZE(env, argv[1], &i)
+        || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
+        || i > ctx->size || i == 0) {
         return BADARG;
     }
 
     idx = get_index(ctx, i);
-    if (ctx->circa[idx] == EMPTY_VAL) {
-        ret = ATOM("empty");
-    } else {
-        ret = ERL_MAKE_ELEM(env, ctx->circa[idx]);
-    }
-    return TUPLE2(ATOM_OK, ret);
+    ret = number_to_value(env, ctx, idx);
+
+    return ret;
 }
 
 static ERL_NIF_TERM
 set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
-    char emptycmp[6];
     length_t i, idx;
     elem_t val, old_val, new_val;
-    uint64_t val_big;
+    ERL_NIF_TERM ret;
 
-    if (argc != 3) {
+    if (argc != 3
+        || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
+        || !ERL_GET_SIZE(env, argv[1], &i)
+        || i > ctx->size || i == 0) {
         return BADARG;
     }
-    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
-        return BADARG;
-    }
-    if (!ERL_GET_SIZE(env, argv[1], &i)) {
-        return BADARG;
-    }
-    if (i > ctx->size || i == 0) {
-        return BADARG;
-    }
-    if (!ERL_GET_ELEM(env, argv[2], &val_big)) {
-        if (!enif_get_atom(env, argv[2], emptycmp, 6, ERL_NIF_LATIN1)) {
-            return BADARG;
-        } else {
-            if (!strcmp(emptycmp, emptystr)) {
-                val = EMPTY_VAL;
-            } else {
-                return BADARG;
-            }
-        }
-    } else {
-        if (val_big > MAX_VAL) {
-           return TUPLE2(ATOM_OK, ATOM_OVERFLOW);
-        }
-        val = (elem_t) val_big;
+
+    switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
+        case vtn_error: return ret;
+        case vtn_atom:  val = encode_atom(val); break;
+        default:        break;
     }
 
     idx = get_index(ctx, i);
 
-    old_val = ctx->circa[idx];
-    ctx->circa[idx] = val;
-    new_val = ctx->circa[idx];
+    old_val = number_to_value(env, ctx, idx);
 
-    return TUPLE2(ATOM_OK, TUPLE2(maybe_value(env, old_val),
-                                  maybe_value(env, new_val)));
+    if (ctx->type == ecirca_avg) {
+        ctx->circa[idx] = 1;
+        ctx->avg[idx] = (avg_t) val;
+    } else {
+        ctx->circa[idx] = val;
+    }
+
+    new_val = number_to_value(env, ctx, idx);
+
+    return TUPLE2(ATOM_OK, TUPLE2(old_val, new_val));
 }
 
 static ERL_NIF_TERM
 update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-    circactx * ctx;
-    char emptycmp[6];
+    circactx* ctx;
     length_t i, idx;
     elem_t val, old_val, new_val;
-    uint64_t val_big;
+    ERL_NIF_TERM ret;
 
-    if (argc != 3) {
-        return BADARG;
-    }
-    if (!ERL_GET_SIZE(env, argv[1], &i)) {
-        return BADARG;
-    }
-    if (!ERL_GET_ELEM(env, argv[2], &val_big)) {
-        if (!enif_get_atom(env, argv[2], emptycmp, 6, ERL_NIF_LATIN1)) {
-            return BADARG;
-        } else {
-            if (!strcmp(emptycmp, emptystr)) {
-                val = EMPTY_VAL;
-            } else {
-                return BADARG;
-            }
-        }
-    } else {
-        if (val_big > MAX_VAL) {
-            return TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
-        }
-        val = (elem_t) val_big;
-    }
-    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
-        return BADARG;
-    }
-    if (i > ctx->size || i == 0) {
+    if (argc != 3
+        || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
+        || !ERL_GET_SIZE(env, argv[1], &i)
+        || i > ctx->size || i == 0) {
         return BADARG;
     }
 
     idx = get_index(ctx, i);
 
-    old_val = ctx->circa[idx];
+    old_val = number_to_value(env, ctx, idx);
 
-    /* do something according to ecirca type */
-    if (ctx->type == ecirca_last) {
-        ctx->circa[idx] = val;
-    }
-    else if (val != EMPTY_VAL && ctx->circa[idx] != EMPTY_VAL) {
-        if (ctx->type == ecirca_max) {
-
-            if (val > ctx->circa[idx]) {
-                ctx->circa[idx] = val;
+    switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
+        case vtn_error: return ret;
+        case vtn_atom:
+            if (ctx->atom_types[val] == atom_strong) {
+                ctx->circa[idx] = encode_atom(val);
+            } /* weak atoms can't override existing value */
+            break;
+        case vtn_ok:
+            if(!update_value(env, ctx, idx, val, &ret)) {
+                return ret;
             }
-        }
-        else if (ctx->type == ecirca_min) {
-            if (val < ctx->circa[idx]) {
-                ctx->circa[idx] = val;
-            }
-        }
-        else if (ctx->type == ecirca_avg) {
-            if ((ctx->circa[idx] + val) / 2 >= val &&
-                (ctx->circa[idx] + val) / 2 >= ctx->circa[idx]) {
-                ctx->circa[idx] = (ctx->circa[idx] + val) / 2;
-            }
-        }
-        else if (ctx->type == ecirca_sum) {
-            if (ctx->circa[idx] + val >= val &&
-                ctx->circa[idx] + val >= ctx->circa[idx]) {
-                ctx->circa[idx] = ctx->circa[idx] + val;
-            }
-        }
-    }
-    else {
-        ctx->circa[idx] = val;
+            break;
     }
 
-    new_val = ctx->circa[idx];
+    new_val = number_to_value(env, ctx, idx);
 
-    return TUPLE2(ATOM_OK, TUPLE2(maybe_value(env, old_val),
-                                  maybe_value(env, new_val)));
+    return TUPLE2(ATOM_OK, TUPLE2(old_val, new_val));
 }
 
 static ERL_NIF_TERM
@@ -345,21 +339,14 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
     length_t start, end, slicesize, idx, i, a;
     ERL_NIF_TERM * terms;
-    ERL_NIF_TERM atom_empty;
     int incr;
 
-    if (argc != 3) {
-        return BADARG;
-    }
-    if (!ERL_GET_SIZE(env, argv[1], &start) ||
-        !ERL_GET_SIZE(env, argv[2], &end)) {
-        return BADARG;
-    }
-    if (!enif_get_resource(env, argv[0], circa_type, (void**) &ctx)) {
-        return BADARG;
-    }
-    if (start > ctx->size || start == 0 ||
-        end > ctx->size || end == 0) {
+    if (argc != 3
+        || !ERL_GET_SIZE(env, argv[1], &start)
+        || !ERL_GET_SIZE(env, argv[2], &end)
+        || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
+        || start > ctx->size || start == 0
+        || end > ctx->size || end == 0) {
         return BADARG;
     }
 
@@ -378,16 +365,9 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     /* create slice */
     terms = enif_alloc(sizeof(ERL_NIF_TERM) * slicesize);
 
-    atom_empty = ATOM("empty");
-
     for (a = 0, i = start; i != end + incr; i += incr) {
         idx = get_index(ctx, i);
-
-        if (ctx->circa[idx] == EMPTY_VAL) {
-            terms[a++] = atom_empty;
-        } else {
-            terms[a++] = ERL_MAKE_ELEM(env, ctx->circa[idx]);
-        }
+        terms[a++] = number_to_value(env, ctx, idx);
     }
 
     return TUPLE2(ATOM_OK, enif_make_list_from_array(env, terms, slicesize));
@@ -447,7 +427,7 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
                  sizeof(unsigned int));
     buflen = (headerlen + sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
-        buflen += sizeof(count_t) * ctx->size;
+        buflen += sizeof(avg_t) * ctx->size;
     }
 
     bin_data = enif_make_new_binary(env, buflen, &ret);
@@ -465,7 +445,7 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     if (ctx->type == ecirca_avg) {
         i += (ctx->size * sizeof(elem_t));
-        memcpy(bin_data + i, ctx->count, ctx->size * sizeof(count_t));
+        memcpy(bin_data + i, ctx->avg, ctx->size * sizeof(avg_t));
     }
 
     return TUPLE2(ATOM_OK, ret);
@@ -512,7 +492,7 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     buflen = (headerlen + sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
-        buflen += sizeof(count_t) * ctx->size;
+        buflen += sizeof(avg_t) * ctx->size;
     }
     if (bin.size < buflen) {
         return TUPLE2(ATOM_ERROR, ATOM("bad_binary"));
@@ -529,7 +509,7 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     memcpy(ctx->circa, bin.data + i, ctx->size * sizeof(elem_t));
     if (ctx->type == ecirca_avg) {
         i += ctx->size * sizeof(elem_t);
-        memcpy(ctx->count, bin.data + i, ctx->size * sizeof(count_t));
+        memcpy(ctx->avg, bin.data + i, ctx->size * sizeof(avg_t));
     }
 
     ret = enif_make_resource(env, ctx);
@@ -559,15 +539,6 @@ set_type(char* str, ecirca_type* type) {
     return 0;
 }
 
-static ERL_NIF_TERM
-maybe_value(ErlNifEnv* env, elem_t v) {
-    if(v == EMPTY_VAL) {
-        return ATOM("empty");
-    } else {
-        return ERL_MAKE_ELEM(env, v);
-    }
-}
-
 /* get array index with respect to array bounds */
 static length_t
 get_index(circactx * ctx, length_t i) {
@@ -581,10 +552,133 @@ get_index(circactx * ctx, length_t i) {
     return index;
 }
 
+static ERL_NIF_TERM
+number_to_value(ErlNifEnv* env, circactx* ctx, length_t idx) {
+    int atom_idx;
+
+    atom_idx = (int)(ctx->circa[idx] >> BITNESS);
+    if (atom_idx > 0 && atom_idx < 16) {
+        return ctx->atoms[atom_idx];
+    }
+    if (ctx->type == ecirca_avg) {
+        return ERL_MAKE_ELEM(env, (elem_t)ROUND(ctx->avg[idx]));
+    }
+    return ERL_MAKE_ELEM(env, ctx->circa[idx]);
+}
+
+/* returns 0 if error occured and caller should return "ret";
+   returns 1 if value is a number and caller should use "num" as a number;
+   returns 2 if value is an atom and caller should use "num" as an index in
+             atoms table */
+static vtn_ret
+value_to_number(ErlNifEnv* env, circactx* ctx,
+                ERL_NIF_TERM val, elem_t* num, ERL_NIF_TERM* ret) {
+    int      i;
+    uint64_t val_big;
+
+    if (!ERL_GET_ELEM(env, val, &val_big)) {
+        if (!enif_is_atom(env, val)) {
+            *ret = BADARG;
+            return vtn_error;
+        }
+        if (!enif_compare(val, ATOM("empty"))) {
+                *num = 15;
+                return vtn_atom;
+        }
+        for (i = 1; i < 15; i++) {
+            if (!enif_compare(val, ctx->atoms[i])) {
+                *num = i;
+                return vtn_atom;
+            }
+        }
+        *ret = TUPLE2(ATOM_ERROR, ATOM("unknown_atom"));
+        return vtn_error;
+    }
+
+    if (val_big > MAX_VAL) {
+        *ret = TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
+        return vtn_error;
+    }
+
+    *num = (elem_t) val_big;
+    return vtn_ok;
+}
+
+static int update_value(ErlNifEnv* env, circactx* ctx,
+                        length_t idx, elem_t val, ERL_NIF_TERM* ret) {
+    elem_t sum;
+
+    if (is_strong_atom(ctx, ctx->circa[idx])) {
+        return 1;
+    }
+
+    if (ctx->type == ecirca_avg) {
+        if (is_encoded_atom(ctx->circa[idx])) {
+            ctx->avg[idx] = (avg_t) val;
+            ctx->circa[idx] = 1;
+            return 1;
+        }
+        if (ctx->circa[idx] == MAX_VAL) {
+            *ret = TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
+            return 0;
+        }
+        /* moving cumulative average */
+        /* Kahan summation can be used */
+        ctx->circa[idx]++;
+        ctx->avg[idx] += ((val - ctx->avg[idx]) / ctx->circa[idx]);
+        return 1;
+    }
+    if (ctx->circa[idx] == EMPTY_VAL) {
+        ctx->circa[idx] = val;
+        return 1;
+    }
+    switch (ctx->type) {
+        case ecirca_max:
+            if (val > ctx->circa[idx]) {
+                ctx->circa[idx] = val;
+            }
+            break;
+        case ecirca_min:
+            if (val < ctx->circa[idx]) {
+                ctx->circa[idx] = val;
+            }
+            break;
+        case ecirca_sum:
+            sum = val + ctx->circa[idx];
+            if (sum >= val && sum >= ctx->circa[idx]) { /* no overflow */
+                ctx->circa[idx] = val;
+            } else {
+                *ret = TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
+                return 0;
+            }
+            break;
+        case ecirca_last:
+            ctx->circa[idx] = val;
+            break;
+        default: break;
+    }
+    return 1;
+}
+
+static elem_t
+encode_atom(elem_t val) {
+    return (elem_t)(val << BITNESS);
+}
+
+static int
+is_encoded_atom(elem_t val) {
+    return ((int)(val >> BITNESS)) > 0;
+}
+
+static int
+is_strong_atom(circactx* ctx, elem_t val) {
+    return (is_encoded_atom(val) &&
+            (ctx->atom_types[(int)(val >> BITNESS)]) == atom_strong);
+}
 
 static ErlNifFunc functions[] =
 {
-    {"new",       2, new},
+    {"new",       3, new},
     {"push",      2, push},
     {"get",       2, get},
     {"set",       3, set},

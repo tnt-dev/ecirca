@@ -3,7 +3,7 @@
 -include("ecirca.hrl").
 
 %% Init
--export([new/3, new/2]).
+-export([new/4, new/3, new/2]).
 %% Getters
 -export([get/2, slice/3]).
 %% Setters
@@ -26,6 +26,7 @@
 -type nonneg()            :: non_neg_integer().
 -type ecirca_type()       :: last | max | min | avg | sum.
 -type ecirca_value_size() :: small | medium | large.
+-type ecirca_atom_specs() :: [{atom(), strong | weak}].
 
 %% @doc Returns new ecirca. Takes size and type only, assumes medium
 %%      value size
@@ -33,17 +34,27 @@
                                            {error, max_size}.
 new(Size, Type) -> new(Size, Type, medium).
 
-%% @doc Returns new ecirca. Takes size, type and value size
+%% @doc Returns new ecirca. Takes size, type and value size.
+%%      Assumes empty atom spec list.
 -spec new(pos_integer(),
           ecirca_type(),
           ecirca_value_size()) -> {ok, ecirca()} |
                                   {error, max_size}.
-new(Size, Type, small) ->
-    make_ecirca(ecirca_small:new(Size, Type), small);
-new(Size, Type, medium) ->
-    make_ecirca(ecirca_medium:new(Size, Type), medium);
-new(Size, Type, large) ->
-    make_ecirca(ecirca_large:new(Size, Type), large).
+new(Size, Type, ValueSize) ->
+    new(Size, Type, ValueSize, []).
+
+%% @doc Returns new ecirca. Takes size, type and value size
+-spec new(pos_integer(),
+          ecirca_type(),
+          ecirca_value_size(),
+          ecirca_atom_specs()) -> {ok, ecirca()} |
+                                  {error, max_size}.
+new(Size, Type, small, AtomSpecs) ->
+    make_ecirca(ecirca_small:new(Size, Type, AtomSpecs), small);
+new(Size, Type, medium, AtomSpecs) ->
+    make_ecirca(ecirca_medium:new(Size, Type, AtomSpecs), medium);
+new(Size, Type, large, AtomSpecs) ->
+    make_ecirca(ecirca_large:new(Size, Type, AtomSpecs), large).
 
 %% @doc Sets a value in ecirca. Returns {old value, new value} tuple
 -spec set(ecirca(), pos_integer(), maybe_value()) -> {ok, {maybe_value(),
@@ -57,20 +68,23 @@ new(Size, Type, large) ->
 ?WITH_ECIRCA(update, Position, Value).
 
 %% @doc Push a value to ecirca
--spec push(ecirca(), maybe_value()) -> ok | {error, overflow}.
+-spec push(ecirca(), maybe_value()) -> ok | {error, overflow} |
+                                       {error, unknown_atom}.
 ?WITH_ECIRCA(push, Value).
 
 %% @doc Push a value to ecirca N times
 %% TODO: all
 -spec push_many(ecirca(), nonneg(), maybe_value()) -> ok.
-push_many(Res, N, Val) ->
-    [push(Res, Val) || _ <- lists:seq(1, N)],
+push_many(Ecirca, N, Val) ->
+    [push(Ecirca, Val) || _ <- lists:seq(1, N)],
     ok.
 
 %% @doc Push a list to ecirca
 %% TODO: all
 -spec push_list(ecirca(), [maybe_value()]) -> ok.
-push_list(_Ecirca, _Lst) -> ok.
+push_list(Ecirca, Lst) ->
+    [push(Ecirca, X) || X <- Lst],
+    ok.
 
 %% @doc Returns a value
 -spec get(ecirca(), pos_integer()) -> {ok, maybe_value()}.
