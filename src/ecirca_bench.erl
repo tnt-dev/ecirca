@@ -1,5 +1,5 @@
 -module(ecirca_bench).
--export([start/0]).
+-export([start/0, avg_error/0]).
 -define(WITH_N(F), fun(N) -> fun() -> F end end).
 
 start() ->
@@ -37,3 +37,19 @@ pushN(Ecirca, Val, N) ->
     ecirca:push(Ecirca, Val),
     pushN(Ecirca, Val, N-1).
 
+avg_error() ->
+    {ok, Ec} = ecirca:new(3, avg, large),
+    ecirca:update(Ec, 1, 1),
+    io:format("Ecirca\tTrue\tDiff~n"),
+    avg_error(Ec, [1], 2, 50).
+
+avg_error(_Ec, _Lst, N, Max) when N > Max-> ok;
+avg_error(Ec, Lst, N, Max) ->
+    {ok, EcAvg} = ecirca:get(Ec, 1),
+    TrueAvg = avg(Lst),
+    io:format("~p\t~p\t~p~n", [EcAvg, TrueAvg, abs(TrueAvg - EcAvg)]),
+    ecirca:update(Ec, 1, N),
+    avg_error(Ec, [N|Lst], N+1, Max).
+
+avg(Lst) -> sum(Lst) / length(Lst).
+sum(Lst) -> lists:foldl(fun (A, B) -> A + B end, 0, Lst).
