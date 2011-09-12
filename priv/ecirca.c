@@ -258,7 +258,7 @@ get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     idx = get_index(ctx, i);
     ret = number_to_value(env, ctx, idx);
 
-    return ret;
+    return TUPLE2(ATOM_OK, ret);
 }
 
 static ERL_NIF_TERM
