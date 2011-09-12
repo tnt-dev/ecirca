@@ -29,7 +29,7 @@ build-plt:
 		--apps kernel stdlib sasl inets crypto public_key ssl wx mnesia 
 
 dialyze:
-	@$(DIALYZER) --src src --plt .cowboy_dialyzer.plt \
+	@$(DIALYZER) -r ebin \
 		-Wbehaviours -Werror_handling \
 		-Wrace_conditions -Wunmatched_returns -Wunderspecs #-Wbehaviours
 
