@@ -15,6 +15,7 @@ max_value(large)  -> 576460752303423487.
 
 -record(state, {ecirca     = undefined   :: ecirca:ecirca() | undefined,
                 elements   = array:new() :: array(),
+                previous   = none        :: pos_integer() | atom(),
                 size       = 0           :: pos_integer(),
                 value_size = medium      :: ecirca:ecirca_value_size(),
                 type       = last        :: ecirca:ecirca_type()}).
@@ -25,15 +26,12 @@ ecirca_size(short) -> proper_types:integer(1, 1000);
 ecirca_size(full) ->
     {ok, M} = ecirca:max_size(),
     proper_types:integer(1, M).
-%slice_size() ->
-%    {ok, M} = ecirca:slice_size(),
-%    proper_types:integer(0, M).
 value(S) ->
     Max = max_value(S#state.value_size),
     proper_types:union([proper_types:integer(0, Max), empty]).
 position(S) ->  proper_types:integer(1, S#state.size).
-%position(_S) ->  proper_types:integer(1, 10).
 ecirca(S) -> S#state.ecirca.
+push_count(S) -> proper_types:integer(1, S#state.size * 2).
 
 initial_state() ->
     initial_state(1000, last, medium).
@@ -41,6 +39,7 @@ initial_state() ->
 initial_state(Size, Type, ValueSize) ->
     #state{ecirca     = undefined,
            elements   = array:new([{default, empty}]),
+           previous   = none,
            size       = Size,
            value_size = ValueSize,
            type       = Type}.
@@ -53,18 +52,30 @@ command(S) ->
        {50, {call, ?SERVER, get, [ecirca(S), position(S)]}},
        {50, {call, ?SERVER, slice, [ecirca(S), position(S), position(S)]}},
        {50, {call, ?SERVER, push, [ecirca(S), value(S)]}},
-       {5, {call, ?SERVER, size, [ecirca(S)]}},
-       {3, {call, ?SERVER, max_slice, []}},
-       {3, {call, ?SERVER, max_size, []}}]).
+       {50, {call, ?SERVER, push_many, [ecirca(S), push_count(S), value(S)]}},
+       {10, {call, ?SERVER, size, [ecirca(S)]}},
+       {5, {call, ?SERVER, max_slice, []}},
+       {5, {call, ?SERVER, max_size, []}}]).
 
+precondition(_S, {call, _, slice, [_, Start, End]}) ->
+    abs(End - Start) =< ecirca:max_slice();
 precondition(_, _) -> true.
 
 next_state(S, V, {call, _Mod, new, _Args}) ->
     S#state{ecirca = {call, erlang, element, [2, V]}};
 next_state(S, _V, {call, _Mod, set, [_, Pos, Val]}) ->
-    S#state{elements = array:set(Pos - 1, Val, S#state.elements)};
+    S#state{elements = array:set(Pos - 1, Val, S#state.elements),
+            previous = array:get(Pos - 1, S#state.elements)};
 next_state(S, _V, {call, _Mod, push, [_, Val]}) ->
     Lst = [Val | array:to_list(S#state.elements)],
+    LstTrimmed = lists:sublist(Lst, S#state.size),
+    S#state{elements = array:from_list(LstTrimmed, empty)};
+next_state(S, _V, {call, _Mod, push_many, [_, Count, Val]}) ->
+    Lst = lists:duplicate(Count, Val) ++ array:to_list(S#state.elements),
+    LstTrimmed = lists:sublist(Lst, S#state.size),
+    S#state{elements = array:from_list(LstTrimmed, empty)};
+next_state(S, _V, {call, _Mod, push_list, [_, PushLst]}) ->
+    Lst = PushLst ++ array:to_list(S#state.elements),
     LstTrimmed = lists:sublist(Lst, S#state.size),
     S#state{elements = array:from_list(LstTrimmed, empty)};
 next_state(S, _, _) -> S.
@@ -90,8 +101,8 @@ postcondition(S, {call, _Mod, slice, [_, Pos1, Pos2]}, Res) ->
                end,
     RefSlice =:= Slice;
 %% value returned by set should be {ok, {OldValue, NewValue}}
-postcondition(_S, {call, _Mod, set, [_, _, _]}, _Res) ->
-    true; % should check old-new value tuple
+postcondition(S, {call, _Mod, set, [_, Pos, Val]}, Res) ->
+    Res =:= {ok, {array:get(Pos, S#state.elements), Val}};
 postcondition(_S, {call, _Mod, push, [_, _]}, Res) ->
     Res =:= ok;
 postcondition(S, {call, _Mod, size, [_]}, Res) ->

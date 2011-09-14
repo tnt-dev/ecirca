@@ -7,9 +7,7 @@
 
 #if BITNESS == 12
 #define ERL_MAKE_ELEM   enif_make_uint
-#define ERL_GET_ELEM    enif_get_uint64
 #define MAX_VAL         4096
-#define EMPTY_VAL       UINT16_MAX
 #define ROUND           round
 #define BITNESS_NAME    "small"
 #define INIT_STR        ERL_NIF_INIT(ecirca_small, functions, &init, \
@@ -18,9 +16,7 @@ typedef uint16_t        elem_t;
 #endif
 #if BITNESS == 28
 #define ERL_MAKE_ELEM   enif_make_uint
-#define ERL_GET_ELEM    enif_get_uint64
 #define MAX_VAL         134217728
-#define EMPTY_VAL       UINT32_MAX
 #define ROUND           lround
 #define BITNESS_NAME    "medium"
 #define INIT_STR        ERL_NIF_INIT(ecirca_medium, functions, &init, \
@@ -29,11 +25,9 @@ typedef uint32_t        elem_t;
 #endif
 #if BITNESS == 60
 #define ERL_MAKE_ELEM   enif_make_uint64
-#define ERL_GET_ELEM    enif_get_uint64
 /* bigger vals will be represented as bigints in erlang VM */
 /* TODO: add check for this value in all functions */
 #define MAX_VAL         576460752303423487
-#define EMPTY_VAL       UINT64_MAX
 #define ROUND           llround
 #define BITNESS_NAME    "large"
 #define INIT_STR        ERL_NIF_INIT(ecirca_large, functions, &init, \
@@ -85,6 +79,7 @@ typedef enum {
 } vtn_ret;
 
 typedef struct {
+    ErlNifEnv*     env;
     length_t       begin;
     elem_t*        circa;
     avg_t*         avg;
@@ -106,6 +101,7 @@ static int update_value(ErlNifEnv*, circactx*, length_t, elem_t, ERL_NIF_TERM*);
 static elem_t encode_atom(elem_t);
 static int is_encoded_atom(elem_t);
 static int is_strong_atom(circactx*, elem_t);
+static int is_empty(elem_t);
 
 /* ecirca destructor */
 void
@@ -116,6 +112,7 @@ circactx_dtor(ErlNifEnv* env, void* obj) {
     if (ctx->type == ecirca_avg) {
         enif_free(ctx->avg);
     }
+    enif_free_env(ctx->env);
 }
 
 /* creating resource type on load */
@@ -153,14 +150,15 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         return TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
     }
 
-    ctx         = enif_alloc_resource(circa_type, sizeof(circactx));
-    ctx->begin  = 0;
-    ctx->circa  = enif_alloc(sizeof(elem_t) * size);
+    ctx        = enif_alloc_resource(circa_type, sizeof(circactx));
+    ctx->begin = 0;
+    ctx->circa = enif_alloc(sizeof(elem_t) * size);
     memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
-    ctx->size   = size;
-    ctx->type   = type;
+    ctx->size  = size;
+    ctx->type  = type;
+    ctx->env   = enif_alloc_env();
 
-    ctx->atoms[15]      = ATOM("empty");
+    ctx->atoms[15]      = enif_make_atom(ctx->env, "empty");
     ctx->atom_types[15] = atom_weak;
     i = 1;
     head = argv[2];
@@ -178,13 +176,13 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         } else {
             return BADARG;
         }
-        ctx->atoms[i] = pair[0];
+        ctx->atoms[i] = enif_make_copy(ctx->env, pair[0]);
         i++;
         head = tail;
     }
-    /* fill the rest with "empty" */
+    /* fill the rest with "none" */
     for (; i < 15; i++) {
-        ctx->atoms[i] = ATOM("empty");
+        ctx->atoms[i] = enif_make_atom(ctx->env, "none");
         ctx->atom_types[i] = atom_weak;
     }
 
@@ -227,14 +225,14 @@ push(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
             if (ctx->type == ecirca_avg) {
                 ctx->avg[idx] = 0;
             }
-            ctx->circa[ctx->begin - 1] = val;
+            ctx->circa[idx] = val;
             break;
         case vtn_ok:
             if (ctx->type == ecirca_avg) {
                 ctx->avg[idx] = (avg_t) val;
                 ctx->circa[idx] = 1;
             } else {
-                ctx->circa[ctx->begin - 1] = val;
+                ctx->circa[idx] = val;
             }
             break;
     }
@@ -274,6 +272,7 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         || i > ctx->size || i == 0) {
         return BADARG;
     }
+
 
     switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
         case vtn_error: return ret;
@@ -320,6 +319,9 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         case vtn_atom:
             if (ctx->atom_types[val] == atom_strong) {
                 ctx->circa[idx] = encode_atom(val);
+                if (ctx->type == ecirca_avg) {
+                    ctx->avg[idx] = 0;
+                }
             } /* weak atoms can't override existing value */
             break;
         case vtn_ok:
@@ -342,9 +344,9 @@ slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     int incr;
 
     if (argc != 3
+        || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
         || !ERL_GET_SIZE(env, argv[1], &start)
         || !ERL_GET_SIZE(env, argv[2], &end)
-        || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
         || start > ctx->size || start == 0
         || end > ctx->size || end == 0) {
         return BADARG;
@@ -557,8 +559,11 @@ number_to_value(ErlNifEnv* env, circactx* ctx, length_t idx) {
     int atom_idx;
 
     atom_idx = (int)(ctx->circa[idx] >> BITNESS);
+    /*    printf("DEBUG: %d %d %p %p %d\r\n", atom_idx, ctx->atoms[atom_idx],
+          env, ctx, (int)idx);*/
     if (atom_idx > 0 && atom_idx < 16) {
-        return ctx->atoms[atom_idx];
+        /*        printf("DEBUG2: %d\r\n", enif_make_copy(env, ctx->atoms[atom_idx]));*/
+        return enif_make_copy(env, ctx->atoms[atom_idx]);
     }
     if (ctx->type == ecirca_avg) {
         return ERL_MAKE_ELEM(env, (elem_t)ROUND(ctx->avg[idx]));
@@ -576,7 +581,7 @@ value_to_number(ErlNifEnv* env, circactx* ctx,
     int      i;
     uint64_t val_big;
 
-    if (!ERL_GET_ELEM(env, val, &val_big)) {
+    if (!enif_get_uint64(env, val, &val_big)) {
         if (!enif_is_atom(env, val)) {
             *ret = BADARG;
             return vtn_error;
@@ -628,7 +633,7 @@ static int update_value(ErlNifEnv* env, circactx* ctx,
         ctx->avg[idx] += ((val - ctx->avg[idx]) / ctx->circa[idx]);
         return 1;
     }
-    if (ctx->circa[idx] == EMPTY_VAL) {
+    if (is_empty(ctx->circa[idx])) {
         ctx->circa[idx] = val;
         return 1;
     }
@@ -674,6 +679,11 @@ static int
 is_strong_atom(circactx* ctx, elem_t val) {
     return (is_encoded_atom(val) &&
             (ctx->atom_types[(int)(val >> BITNESS)]) == atom_strong);
+}
+
+static int
+is_empty(elem_t val) {
+    return ((int)(val >> BITNESS)) == 15;
 }
 
 static ErlNifFunc functions[] =
