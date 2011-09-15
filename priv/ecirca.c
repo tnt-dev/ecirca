@@ -263,8 +263,8 @@ static ERL_NIF_TERM
 set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx * ctx;
     length_t i, idx;
-    elem_t val, old_val, new_val;
-    ERL_NIF_TERM ret;
+    elem_t val;
+    ERL_NIF_TERM ret, old_term, new_term;
 
     if (argc != 3
         || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
@@ -272,7 +272,6 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         || i > ctx->size || i == 0) {
         return BADARG;
     }
-
 
     switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
         case vtn_error: return ret;
@@ -287,9 +286,7 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     idx = get_index(ctx, i);
 
-    old_val = number_to_value(env, ctx, idx);
-    //    0x7ff17f4bcdd0 174859 old_val = 43787
-    //    0x7ff1804bedd0 174859 terms = 174859
+    old_term = number_to_value(env, ctx, idx);
 
     if (ctx->type == ecirca_avg) {
         ctx->circa[idx] = 1;
@@ -298,17 +295,17 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         ctx->circa[idx] = val;
     }
 
-    new_val = number_to_value(env, ctx, idx);
+    new_term = number_to_value(env, ctx, idx);
 
-    return TUPLE2(ATOM_OK, TUPLE2(old_val, new_val));
+    return TUPLE2(ATOM_OK, TUPLE2(old_term, new_term));
 }
 
 static ERL_NIF_TERM
 update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx* ctx;
     length_t i, idx;
-    elem_t val, old_val, new_val;
-    ERL_NIF_TERM ret;
+    elem_t val;
+    ERL_NIF_TERM ret, old_term, new_term;
 
     if (argc != 3
         || !enif_get_resource(env, argv[0], circa_type, (void**) &ctx)
@@ -319,7 +316,7 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     idx = get_index(ctx, i);
 
-    old_val = number_to_value(env, ctx, idx);
+    old_term = number_to_value(env, ctx, idx);
 
     switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
         case vtn_error: return ret;
@@ -338,9 +335,9 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
             break;
     }
 
-    new_val = number_to_value(env, ctx, idx);
+    new_term = number_to_value(env, ctx, idx);
 
-    return TUPLE2(ATOM_OK, TUPLE2(old_val, new_val));
+    return TUPLE2(ATOM_OK, TUPLE2(old_term, new_term));
 }
 
 static ERL_NIF_TERM
@@ -615,8 +612,9 @@ value_to_number(ErlNifEnv* env, circactx* ctx,
     return vtn_ok;
 }
 
-static int update_value(ErlNifEnv* env, circactx* ctx,
-                        length_t idx, elem_t val, ERL_NIF_TERM* ret) {
+static int
+update_value(ErlNifEnv* env, circactx* ctx,
+             length_t idx, elem_t val, ERL_NIF_TERM* ret) {
     elem_t sum;
 
     if (is_strong_atom(ctx, ctx->circa[idx])) {
