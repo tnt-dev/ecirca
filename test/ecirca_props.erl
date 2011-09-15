@@ -7,8 +7,10 @@
          precondition/2, postcondition/3, next_state/3]).
 
 -define(SERVER, ecirca).
--define(TYPES, [last, max, min, avg, sum]).
--define(VALUE_SIZES, [small, medium, large]).
+%-define(TYPES, [last, max, min, avg, sum]).
+-define(TYPES, [last, max, min, sum]).
+%-define(VALUE_SIZES, [small, medium, large]).
+-define(VALUE_SIZES, [medium, large]).
 max_value(small)  -> 4096;
 max_value(medium) -> 134217728;
 max_value(large)  -> 576460752303423487.
@@ -102,7 +104,7 @@ postcondition(S, {call, _Mod, slice, [_, Pos1, Pos2]}, Res) ->
     RefSlice =:= Slice;
 %% value returned by set should be {ok, {OldValue, NewValue}}
 postcondition(S, {call, _Mod, set, [_, Pos, Val]}, Res) ->
-    Res =:= {ok, {array:get(Pos, S#state.elements), Val}};
+    Res =:= {ok, {array:get(Pos-1, S#state.elements), Val}};
 postcondition(_S, {call, _Mod, push, [_, _]}, Res) ->
     Res =:= ok;
 postcondition(S, {call, _Mod, size, [_]}, Res) ->
@@ -136,4 +138,4 @@ prop_main() ->
 proper_test_() ->
     {timeout, 600,
      ?_assertEqual([], proper:module(ecirca_props, [{to_file, user},
-                                                    {numtests, 1000}]))}.
+                                                    {numtests, 3000}]))}.

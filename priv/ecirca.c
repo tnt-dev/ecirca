@@ -276,13 +276,20 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
         case vtn_error: return ret;
-        case vtn_atom:  val = encode_atom(val); break;
+        case vtn_atom:
+            val = encode_atom(val);
+            if (ctx->type == ecirca_avg) {
+                ctx->avg = 0;
+            }
+            break;
         default:        break;
     }
 
     idx = get_index(ctx, i);
 
     old_val = number_to_value(env, ctx, idx);
+    //    0x7ff17f4bcdd0 174859 old_val = 43787
+    //    0x7ff1804bedd0 174859 terms = 174859
 
     if (ctx->type == ecirca_avg) {
         ctx->circa[idx] = 1;
@@ -559,8 +566,7 @@ number_to_value(ErlNifEnv* env, circactx* ctx, length_t idx) {
     int atom_idx;
 
     atom_idx = (int)(ctx->circa[idx] >> BITNESS);
-    /*    printf("DEBUG: %d %d %p %p %d\r\n", atom_idx, ctx->atoms[atom_idx],
-          env, ctx, (int)idx);*/
+    /*printf("DEBUG: %d %p %p %d\r\n", atom_idx, env, ctx, (int)idx);*/
     if (atom_idx > 0 && atom_idx < 16) {
         /*        printf("DEBUG2: %d\r\n", enif_make_copy(env, ctx->atoms[atom_idx]));*/
         return enif_make_copy(env, ctx->atoms[atom_idx]);
@@ -587,8 +593,8 @@ value_to_number(ErlNifEnv* env, circactx* ctx,
             return vtn_error;
         }
         if (!enif_compare(val, ATOM("empty"))) {
-                *num = 15;
-                return vtn_atom;
+            *num = 15;
+            return vtn_atom;
         }
         for (i = 1; i < 15; i++) {
             if (!enif_compare(val, ctx->atoms[i])) {
