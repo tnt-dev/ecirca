@@ -79,7 +79,6 @@ typedef enum {
 } vtn_ret;
 
 typedef struct {
-    ErlNifEnv*     env;
     length_t       begin;
     elem_t*        circa;
     avg_t*         avg;
@@ -112,7 +111,6 @@ circactx_dtor(ErlNifEnv* env, void* obj) {
     if (ctx->type == ecirca_avg) {
         enif_free(ctx->avg);
     }
-    enif_free_env(ctx->env);
 }
 
 /* creating resource type on load */
@@ -156,9 +154,8 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     memset(ctx->circa, 0xFF, sizeof(elem_t) * size);
     ctx->size  = size;
     ctx->type  = type;
-    ctx->env   = enif_alloc_env();
 
-    ctx->atoms[15]      = enif_make_atom(ctx->env, "empty");
+    ctx->atoms[15]      = enif_make_atom(env, "empty");
     ctx->atom_types[15] = atom_weak;
     i = 1;
     head = argv[2];
@@ -176,13 +173,13 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         } else {
             return BADARG;
         }
-        ctx->atoms[i] = enif_make_copy(ctx->env, pair[0]);
+        ctx->atoms[i] = pair[0];
         i++;
         head = tail;
     }
     /* fill the rest with "none" */
     for (; i < 15; i++) {
-        ctx->atoms[i] = enif_make_atom(ctx->env, "none");
+        ctx->atoms[i] = enif_make_atom(env, "none");
         ctx->atom_types[i] = atom_weak;
     }
 
@@ -273,26 +270,26 @@ set(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         return BADARG;
     }
 
-    switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
-        case vtn_error: return ret;
-        case vtn_atom:
-            val = encode_atom(val);
-            if (ctx->type == ecirca_avg) {
-                ctx->avg = 0;
-            }
-            break;
-        default:        break;
-    }
-
     idx = get_index(ctx, i);
 
     old_term = number_to_value(env, ctx, idx);
 
-    if (ctx->type == ecirca_avg) {
-        ctx->circa[idx] = 1;
-        ctx->avg[idx] = (avg_t) val;
-    } else {
-        ctx->circa[idx] = val;
+    switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
+        case vtn_error: return ret;
+        case vtn_atom:
+            if (ctx->type == ecirca_avg) {
+                ctx->avg[idx] = 0;
+            }
+            ctx->circa[idx] = encode_atom(val);
+            break;
+        default:
+          if (ctx->type == ecirca_avg) {
+              ctx->circa[idx] = 1;
+              ctx->avg[idx] = (avg_t) val;
+          } else {
+              ctx->circa[idx] = val;
+          }
+          break;
     }
 
     new_term = number_to_value(env, ctx, idx);
@@ -563,10 +560,8 @@ number_to_value(ErlNifEnv* env, circactx* ctx, length_t idx) {
     int atom_idx;
 
     atom_idx = (int)(ctx->circa[idx] >> BITNESS);
-    /*printf("DEBUG: %d %p %p %d\r\n", atom_idx, env, ctx, (int)idx);*/
     if (atom_idx > 0 && atom_idx < 16) {
-        /*        printf("DEBUG2: %d\r\n", enif_make_copy(env, ctx->atoms[atom_idx]));*/
-        return enif_make_copy(env, ctx->atoms[atom_idx]);
+        return ctx->atoms[atom_idx];
     }
     if (ctx->type == ecirca_avg) {
         return ERL_MAKE_ELEM(env, (elem_t)ROUND(ctx->avg[idx]));
