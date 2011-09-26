@@ -1,6 +1,5 @@
 -module(ecirca).
 -compile({parse_transform, ecirca_pt}).
--compile(inline).
 -include("ecirca.hrl").
 
 %% Init
