@@ -1,0 +1,125 @@
+======= push last ======================
+------- small ----------------------
+push 1 runned 1000000 times, took 207516 us (0.207516 us each)
+push 1000 runned 1000000 times, took 206525 us (0.206525 us each)
+push 4095 runned 1000000 times, took 205986 us (0.205986 us each)
+------- medium ----------------------
+push 1 runned 1000000 times, took 203454 us (0.203454 us each)
+push 1000 runned 1000000 times, took 205248 us (0.205248 us each)
+push 134217727 runned 1000000 times, took 206906 us (0.206906 us each)
+------- large ----------------------
+push 1 runned 1000000 times, took 209431 us (0.209431 us each)
+push 1000 runned 1000000 times, took 206650 us (0.20665 us each)
+push 576460752303423487 runned 1000000 times, took 208054 us (0.208054 us each)
+
+======= push min ======================
+------- small ----------------------
+push 1 runned 1000000 times, took 209155 us (0.209155 us each)
+push 1000 runned 1000000 times, took 209229 us (0.209229 us each)
+push 4095 runned 1000000 times, took 213954 us (0.213954 us each)
+------- medium ----------------------
+push 1 runned 1000000 times, took 204682 us (0.204682 us each)
+push 1000 runned 1000000 times, took 203255 us (0.203255 us each)
+push 134217727 runned 1000000 times, took 204649 us (0.204649 us each)
+------- large ----------------------
+push 1 runned 1000000 times, took 203323 us (0.203323 us each)
+push 1000 runned 1000000 times, took 204351 us (0.204351 us each)
+push 576460752303423487 runned 1000000 times, took 202478 us (0.202478 us each)
+
+======= push avg ======================
+------- small ----------------------
+push 1 runned 1000000 times, took 206680 us (0.20668 us each)
+push 1000 runned 1000000 times, took 206277 us (0.206277 us each)
+push 4095 runned 1000000 times, took 205899 us (0.205899 us each)
+------- medium ----------------------
+push 1 runned 1000000 times, took 202640 us (0.20264 us each)
+push 1000 runned 1000000 times, took 201414 us (0.201414 us each)
+push 134217727 runned 1000000 times, took 202107 us (0.202107 us each)
+------- large ----------------------
+push 1 runned 1000000 times, took 204532 us (0.204532 us each)
+push 1000 runned 1000000 times, took 205421 us (0.205421 us each)
+push 576460752303423487 runned 1000000 times, took 205906 us (0.205906 us each)
+
+======= set last ======================
+------- small ----------------------
+set 1 runned 1000000 times, took 244806 us (0.244806 us each)
+set 1000 runned 1000000 times, took 245341 us (0.245341 us each)
+set 4095 runned 1000000 times, took 244580 us (0.24458 us each)
+------- medium ----------------------
+set 1 runned 1000000 times, took 258815 us (0.258815 us each)
+set 1000 runned 1000000 times, took 258117 us (0.258117 us each)
+set 134217727 runned 1000000 times, took 257484 us (0.257484 us each)
+------- large ----------------------
+set 1 runned 1000000 times, took 295922 us (0.295922 us each)
+set 1000 runned 1000000 times, took 265199 us (0.265199 us each)
+set 576460752303423487 runned 1000000 times, took 264503 us (0.264503 us each)
+
+======= set min ======================
+------- small ----------------------
+set 1 runned 1000000 times, took 246672 us (0.246672 us each)
+set 1000 runned 1000000 times, took 246366 us (0.246366 us each)
+set 4095 runned 1000000 times, took 247277 us (0.247277 us each)
+------- medium ----------------------
+set 1 runned 1000000 times, took 258092 us (0.258092 us each)
+set 1000 runned 1000000 times, took 258521 us (0.258521 us each)
+set 134217727 runned 1000000 times, took 256950 us (0.25695 us each)
+------- large ----------------------
+set 1 runned 1000000 times, took 268022 us (0.268022 us each)
+set 1000 runned 1000000 times, took 268331 us (0.268331 us each)
+set 576460752303423487 runned 1000000 times, took 264898 us (0.264898 us each)
+
+======= set avg ======================
+------- small ----------------------
+set 1 runned 1000000 times, took 256467 us (0.256467 us each)
+set 1000 runned 1000000 times, took 257753 us (0.257753 us each)
+set 4095 runned 1000000 times, took 257332 us (0.257332 us each)
+------- medium ----------------------
+set 1 runned 1000000 times, took 273183 us (0.273183 us each)
+set 1000 runned 1000000 times, took 273185 us (0.273185 us each)
+set 134217727 runned 1000000 times, took 271966 us (0.271966 us each)
+------- large ----------------------
+set 1 runned 1000000 times, took 263835 us (0.263835 us each)
+set 1000 runned 1000000 times, took 259966 us (0.259966 us each)
+set 576460752303423487 runned 1000000 times, took 260815 us (0.260815 us each)
+
+======= update last ======================
+------- small ----------------------
+update 1 runned 1000000 times, took 256416 us (0.256416 us each)
+update 1000 runned 1000000 times, took 256707 us (0.256707 us each)
+update 4095 runned 1000000 times, took 256858 us (0.256858 us each)
+------- medium ----------------------
+update 1 runned 1000000 times, took 237568 us (0.237568 us each)
+update 1000 runned 1000000 times, took 237107 us (0.237107 us each)
+update 134217727 runned 1000000 times, took 239902 us (0.239902 us each)
+------- large ----------------------
+update 1 runned 1000000 times, took 243423 us (0.243423 us each)
+update 1000 runned 1000000 times, took 243893 us (0.243893 us each)
+update 576460752303423487 runned 1000000 times, took 242949 us (0.242949 us each)
+
+======= update min ======================
+------- small ----------------------
+update 1 runned 1000000 times, took 242331 us (0.242331 us each)
+update 1000 runned 1000000 times, took 241388 us (0.241388 us each)
+update 4095 runned 1000000 times, took 241700 us (0.2417 us each)
+------- medium ----------------------
+update 1 runned 1000000 times, took 240747 us (0.240747 us each)
+update 1000 runned 1000000 times, took 242353 us (0.242353 us each)
+update 134217727 runned 1000000 times, took 243770 us (0.24377 us each)
+------- large ----------------------
+update 1 runned 1000000 times, took 247070 us (0.24707 us each)
+update 1000 runned 1000000 times, took 247270 us (0.24727 us each)
+update 576460752303423487 runned 1000000 times, took 247096 us (0.247096 us each)
+
+======= update avg ======================
+------- small ----------------------
+update 1 runned 1000000 times, took 366199 us (0.366199 us each)
+update 1000 runned 1000000 times, took 367574 us (0.367574 us each)
+update 4095 runned 1000000 times, took 363850 us (0.36385 us each)
+------- medium ----------------------
+update 1 runned 1000000 times, took 256373 us (0.256373 us each)
+update 1000 runned 1000000 times, took 256309 us (0.256309 us each)
+update 134217727 runned 1000000 times, took 255909 us (0.255909 us each)
+------- large ----------------------
+update 1 runned 1000000 times, took 261275 us (0.261275 us each)
+update 1000 runned 1000000 times, took 263231 us (0.263231 us each)
+update 576460752303423487 runned 1000000 times, took 261538 us (0.261538 us each)

@@ -2,40 +2,46 @@
 -export([start/0, avg_error/0]).
 -define(WITH_N(F), fun(N) -> fun() -> F end end).
 
+max_value(small) -> 4095;
+max_value(medium) -> 134217727;
+max_value(large) -> 576460752303423487.
+
 start() ->
-    io:format("PUSH ===========~n"),
-    io:format("~nSmall ecirca ----------~n"),
-    {ok, E1} = ecirca:new(100, last, small),
-    bench("push 1", ?WITH_N(pushN(E1, 1, N))),
-    bench("push 1000", ?WITH_N(pushN(E1, 1000, N))),
-    bench("push MAX", ?WITH_N(pushN(E1, 4096, N))),
-    io:format("~nMedium ecirca ----------~n"),
-    {ok, E2} = ecirca:new(100, last, medium),
-    bench("push 1", ?WITH_N(pushN(E2, 1, N))),
-    bench("push 1000", ?WITH_N(pushN(E2, 1000, N))),
-    bench("push MAX", ?WITH_N(pushN(E1, 134217728, N))),
-    io:format("~nLarge ecirca ----------~n"),
-    {ok, E3} = ecirca:new(100, last, large),
-    bench("push 1", ?WITH_N(pushN(E3, 1, N))),
-    bench("push 1000", ?WITH_N(pushN(E3, 1000, N))),
-    bench("push MAX", ?WITH_N(pushN(E1, 576460752303423487, N))),
+    [bench_fun(Fun, Type) || Fun <- [push, set, update],
+                             Type <- [last, min, avg]],
+    ok.
+
+bench_fun(Fun, Type) ->
+    io:format("~n======= ~s ~s ======================~n", [Fun, Type]),
+    [bench_1_1k_max(Fun, Type, ValueSize)
+     || ValueSize <- [small, medium, large]],
+    ok.
+
+bench_1_1k_max(Fun, Type, ValueSize) ->
+    io:format("------- ~s ----------------------~n", [ValueSize]),
+    {ok, E} = ecirca:new(100, Type, ValueSize),
+    [bench(io_lib:format("~s ~p", [Fun, X]),
+           ?WITH_N(doN(Fun, E, 1, N)))
+     || X <- [1, 1000, max_value(ValueSize)]],
     ok.
 
 bench(Name, Fun) ->
-    bench(Name, Fun, [100, 10000, 1000000]).
+    bench(Name, Fun, [1000000]).
 
 bench(Name, Fun, Ns) when is_list(Ns) ->
-    io:format("-------------~n"),
     [bench(Name, Fun, N) || N <- Ns];
 bench(Name, Fun, N) when is_integer(N) ->
     {Time, _} = timer:tc(Fun(N)),
     io:format("~s runned ~p times, took ~p us (~p us each)~n",
               [Name, N, Time, Time / N]).
 
-pushN(_, _, 0) -> ok;
-pushN(Ecirca, Val, N) ->
-    ecirca:push(Ecirca, Val),
-    pushN(Ecirca, Val, N-1).
+doN(_, _, _, 0) -> ok;
+doN(push, Ecirca, Val, N) ->
+    ecirca:push(Ecirca, Val), doN(push, Ecirca, Val, N-1);
+doN(set, Ecirca, Val, N) ->
+    ecirca:set(Ecirca, 13, Val), doN(set, Ecirca, Val, N-1);
+doN(update, Ecirca, Val, N) ->
+    ecirca:update(Ecirca, 13, Val), doN(update, Ecirca, Val, N-1).
 
 avg_error() ->
     {ok, Ec} = ecirca:new(3, avg, large),
