@@ -100,6 +100,7 @@ static int update_value(ErlNifEnv*, circactx*, length_t, elem_t, ERL_NIF_TERM*);
 static elem_t encode_atom(elem_t);
 static int is_encoded_atom(elem_t);
 static int is_strong_atom(circactx*, elem_t);
+static int is_weak_atom(circactx*, elem_t);
 static int is_empty(elem_t);
 
 /* ecirca destructor */
@@ -157,6 +158,8 @@ new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
     ctx->atoms[15]      = enif_make_atom(env, "empty");
     ctx->atom_types[15] = atom_weak;
+    ctx->atoms[0]      = enif_make_atom(env, "none");
+    ctx->atom_types[0] = atom_weak;
     i = 1;
     head = argv[2];
     while (enif_get_list_cell(env, head, &elem, &tail)) {
@@ -318,7 +321,8 @@ update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     switch (value_to_number(env, ctx, argv[2], &val, &ret)) {
         case vtn_error: return ret;
         case vtn_atom:
-            if (ctx->atom_types[val] == atom_strong) {
+            if (is_empty(ctx->circa[idx]) ||
+                ctx->atom_types[val] == atom_strong) {
                 ctx->circa[idx] = encode_atom(val);
                 if (ctx->type == ecirca_avg) {
                     ctx->avg[idx] = 0;
@@ -415,7 +419,8 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx* ctx;
     ERL_NIF_TERM ret;
     unsigned char* bin_data;
-    length_t buflen, headerlen, i;
+    uint64_t buflen, headerlen, atomslen, elemslen, avglen, i, offset;
+    unsigned int atomlens[16];
 
     if (argc != 1) {
         return BADARG;
@@ -424,31 +429,61 @@ save(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
         return BADARG;
     }
 
-    headerlen = (sizeof(length_t) +
-                 sizeof(length_t) +
-                 sizeof(ecirca_type) +
-                 sizeof(unsigned int));
-    buflen = (headerlen + sizeof(elem_t) * ctx->size);
-    if (ctx->type == ecirca_avg) {
-        buflen += sizeof(avg_t) * ctx->size;
+    for (i = 0; i < 16; i++) {
+        enif_get_atom_length(env, ctx->atoms[i],
+                             &(atomlens[i]), ERL_NIF_LATIN1);
+        atomlens[i]++; /* null-ending should have place */
     }
+
+    headerlen = (sizeof(length_t) +            /* ctx->size       */
+                 sizeof(length_t) +            /* ctx->begin      */
+                 sizeof(ecirca_type) +         /* ctx->type       */
+                 sizeof(unsigned int) +        /* bitness         */
+                 (sizeof(atom_type) * 16));    /* ctx->atom_types */
+
+    atomslen = 0;
+    for (i = 0; i < 16; i++) {
+        atomslen += atomlens[i];
+    }
+
+    elemslen = sizeof(elem_t) * ctx->size;
+
+    if (ctx->type == ecirca_avg) {
+        avglen = sizeof(avg_t) * ctx->size;
+    } else {
+        avglen = 0;
+    }
+
+    buflen = (headerlen +
+              atomslen +
+              elemslen +
+              avglen);
 
     bin_data = enif_make_new_binary(env, buflen, &ret);
 
-    /* format is size-begin-type-value_type-circa-[count]*/
+    /* format is size-begin-type-value_type-atom_types-atoms-circa-[count]*/
     memset(bin_data, 0x00, headerlen);
 
-    i = 0;
-    PUT_BUF(bin_data, i, ctx->size);
-    PUT_BUF(bin_data, i, ctx->begin);
-    PUT_BUF(bin_data, i, ctx->type);
-    PUT_BUF(bin_data, i, BITNESS);
+    offset = 0;
+    PUT_BUF(bin_data, offset, ctx->size);
+    PUT_BUF(bin_data, offset, ctx->begin);
+    PUT_BUF(bin_data, offset, ctx->type);
+    PUT_BUF(bin_data, offset, BITNESS);
+    for (i = 0; i < 16; i++) {
+        PUT_BUF(bin_data, offset, ctx->atom_types[i]);
+    }
 
-    memcpy(bin_data + i, ctx->circa, ctx->size * sizeof(elem_t));
+    for (i = 0; i < 16; i++) {
+        enif_get_atom(env, ctx->atoms[i], (char*)(bin_data + offset),
+                      atomlens[i], ERL_NIF_LATIN1);
+        offset += atomlens[i];
+    }
+
+    memcpy(bin_data + offset, ctx->circa, elemslen);
 
     if (ctx->type == ecirca_avg) {
-        i += (ctx->size * sizeof(elem_t));
-        memcpy(bin_data + i, ctx->avg, ctx->size * sizeof(avg_t));
+        offset += elemslen;
+        memcpy(bin_data + offset, ctx->avg, avglen);
     }
 
     return TUPLE2(ATOM_OK, ret);
@@ -459,7 +494,7 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     circactx* ctx;
     ErlNifBinary bin;
     ERL_NIF_TERM ret;
-    length_t buflen, headerlen, i;
+    uint64_t buflen, headerlen, i, offset, atomslen;
     unsigned int value_type;
 
     if (argc != 1) {
@@ -475,44 +510,59 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     headerlen = (sizeof(length_t) +
                  sizeof(length_t) +
                  sizeof(ecirca_type) +
-                 sizeof(unsigned int));
+                 sizeof(unsigned int) +
+                 (sizeof(atom_type) * 16));
 
     if (bin.size < headerlen) {
-        return TUPLE2(ATOM_ERROR, ATOM("bad_binary"));
+        return TUPLE2(ATOM_ERROR, ATOM("bad_binary_size_head"));
     }
 
     /* format is size-begin-type-circa-[count]*/
-    i = 0;
+    offset = 0;
     ctx = enif_alloc_resource(circa_type, sizeof(circactx));
-    GET_BUF(bin.data, i, ctx->size);
-    GET_BUF(bin.data, i, ctx->begin);
-    GET_BUF(bin.data, i, ctx->type);
-    GET_BUF(bin.data, i, value_type);
+    GET_BUF(bin.data, offset, ctx->size);
+    GET_BUF(bin.data, offset, ctx->begin);
+    GET_BUF(bin.data, offset, ctx->type);
+    GET_BUF(bin.data, offset, value_type);
+    for (i = 0; i < 16; i++) {
+        GET_BUF(bin.data, offset, ctx->atom_types[i]);
+    }
 
     if (value_type != BITNESS) {
         return TUPLE2(ATOM_ERROR, ATOM("wrong_ecirca_value_type"));
     }
 
-    buflen = (headerlen + sizeof(elem_t) * ctx->size);
-    if (ctx->type == ecirca_avg) {
-        buflen += sizeof(avg_t) * ctx->size;
-    }
-    if (bin.size < buflen) {
-        return TUPLE2(ATOM_ERROR, ATOM("bad_binary"));
-    }
     if (ctx->size > MAX_SIZE) {
         return TUPLE2(ATOM_ERROR, ATOM("max_size"));
     }
-    if (ctx->begin >= ctx->size ||
-        ctx->type < ecirca_last || ctx->type > ecirca_sum) {
-        return TUPLE2(ATOM_ERROR, ATOM("bad_binary"));
+    if (ctx->begin > ctx->size) {
+        return TUPLE2(ATOM_ERROR, ATOM("bad_ecirca_begin"));
+    }
+    if (ctx->type < ecirca_last || ctx->type > ecirca_sum) {
+        return TUPLE2(ATOM_ERROR, ATOM("bad_ecirca_type"));
     }
 
-    ctx->circa  = enif_alloc(sizeof(elem_t) * ctx->size);
-    memcpy(ctx->circa, bin.data + i, ctx->size * sizeof(elem_t));
+    atomslen = offset;
+    for (i = 0; i < 16; i++) {
+        ctx->atoms[i] = enif_make_atom(env, (const char*)(bin.data + offset));
+        offset += strlen((const char*)(bin.data + offset)) + 1;
+    }
+    atomslen = offset - atomslen;
+
+    buflen = (headerlen + atomslen + sizeof(elem_t) * ctx->size);
     if (ctx->type == ecirca_avg) {
-        i += ctx->size * sizeof(elem_t);
-        memcpy(ctx->avg, bin.data + i, ctx->size * sizeof(avg_t));
+        buflen += (sizeof(avg_t) * ctx->size);
+    }
+    if (bin.size != buflen) {
+        return TUPLE2(ATOM_ERROR, ATOM("bad_binary_size_body"));
+    }
+
+    ctx->circa = enif_alloc(sizeof(elem_t) * ctx->size);
+    memcpy(ctx->circa, bin.data + offset, ctx->size * sizeof(elem_t));
+    if (ctx->type == ecirca_avg) {
+        offset += (ctx->size * sizeof(elem_t));
+        ctx->avg = enif_alloc(ctx->size * sizeof(avg_t));
+        memcpy(ctx->avg, bin.data + offset, ctx->size * sizeof(avg_t));
     }
 
     ret = enif_make_resource(env, ctx);
@@ -545,14 +595,11 @@ set_type(char* str, ecirca_type* type) {
 /* get array index with respect to array bounds */
 static length_t
 get_index(circactx * ctx, length_t i) {
-    length_t index;
-
     if (i > ctx->begin) {
-        index = ctx->size + ctx->begin - i;
+        return ctx->size + ctx->begin - i;
     } else {
-        index = ctx->begin - i;
+        return ctx->begin - i;
     }
-    return index;
 }
 
 static ERL_NIF_TERM
@@ -598,7 +645,7 @@ value_to_number(ErlNifEnv* env, circactx* ctx,
         return vtn_error;
     }
 
-    if (val_big > MAX_VAL) {
+    if (val_big >= MAX_VAL) {
         *ret = TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
         return vtn_error;
     }
@@ -622,7 +669,7 @@ update_value(ErlNifEnv* env, circactx* ctx,
             ctx->circa[idx] = 1;
             return 1;
         }
-        if (ctx->circa[idx] == MAX_VAL) {
+        if (ctx->circa[idx] == (MAX_VAL - 1)) {
             *ret = TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
             return 0;
         }
@@ -632,7 +679,7 @@ update_value(ErlNifEnv* env, circactx* ctx,
         ctx->avg[idx] += ((val - ctx->avg[idx]) / ctx->circa[idx]);
         return 1;
     }
-    if (is_empty(ctx->circa[idx])) {
+    if (is_weak_atom(ctx, ctx->circa[idx])) {
         ctx->circa[idx] = val;
         return 1;
     }
@@ -650,7 +697,7 @@ update_value(ErlNifEnv* env, circactx* ctx,
         case ecirca_sum:
             sum = val + ctx->circa[idx];
             if (sum >= val && sum >= ctx->circa[idx]) { /* no overflow */
-                ctx->circa[idx] = val;
+                ctx->circa[idx] = sum;
             } else {
                 *ret = TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
                 return 0;
@@ -678,6 +725,12 @@ static int
 is_strong_atom(circactx* ctx, elem_t val) {
     return (is_encoded_atom(val) &&
             (ctx->atom_types[(int)(val >> BITNESS)]) == atom_strong);
+}
+
+static int
+is_weak_atom(circactx* ctx, elem_t val) {
+    return (is_encoded_atom(val) &&
+            (ctx->atom_types[(int)(val >> BITNESS)]) == atom_weak);
 }
 
 static int

@@ -135,6 +135,7 @@ load(Binary, large) ->
 
 %%% Internal functions
 
--spec make_ecirca(resource(), ecirca_value_size()) -> ecirca().
+-spec make_ecirca(resource(), ecirca_value_size()) -> ecirca() | {error, _}.
+make_ecirca({error, _}=Err, _) -> Err;
 make_ecirca(Res, ValueSize) ->
     {ok, {ecirca, make_ref(), Res, self(), ValueSize}}.
