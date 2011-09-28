@@ -18,18 +18,15 @@ load(_)         -> ?STUB.
 %% @doc Loads a NIF
 -spec nif_init() -> ok | {error, _}.
 nif_init() ->
-    SoName = case code:priv_dir(?APPNAME) of
-                 {error, bad_name} ->
-                     case filelib:is_dir(filename:join(["..", priv])) of
-                         true ->
-                             filename:join(["..", priv, ?MODULE]);
-                         _ ->
-                             filename:join([priv, ?MODULE])
-                     end;
-                 Dir ->
-                     filename:join(Dir, ?MODULE)
-             end,
-    erlang:load_nif(SoName, 1).
+    PrivDir = case code:priv_dir(?MODULE) of
+                  {error, _} ->
+                      EbinDir = filename:dirname(code:which(?MODULE)),
+                      AppPath = filename:dirname(EbinDir),
+                      filename:join(AppPath, "priv");
+                  Path ->
+                      Path
+              end,
+    erlang:load_nif(filename:join(PrivDir, ?MODULE), 0).
 
 -spec not_loaded(pos_integer()) -> ok.
 not_loaded(Line) -> exit({not_loaded, [{module, ?MODULE}, {line, Line}]}).
