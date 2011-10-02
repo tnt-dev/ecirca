@@ -18,7 +18,7 @@ load(_)         -> ?STUB.
 %% @doc Loads a NIF
 -spec nif_init() -> ok | {error, _}.
 nif_init() ->
-    PrivDir = case code:priv_dir(?MODULE) of
+    PrivDir = case code:priv_dir(ecirca) of
                   {error, _} ->
                       EbinDir = filename:dirname(code:which(?MODULE)),
                       AppPath = filename:dirname(EbinDir),
