@@ -10,10 +10,6 @@
 -define(TYPES, [last, max, min, avg, sum]).
 -define(VALUE_SIZES, [small, medium, large]).
 
-max_value(small)  -> 4096 - 1;
-max_value(medium) -> 134217728 - 1;
-max_value(large)  -> 576460752303423487 - 1.
-
 -record(state, {ecirca     = undefined       :: ecirca:ecirca() | undefined,
                 elements   = array:new()     :: array(),
                 size       = 0               :: pos_integer(),
@@ -37,7 +33,7 @@ ecirca_size(full) ->
     {ok, M} = ecirca:max_size(),
     integer(1, M).
 value(S) ->
-    Max = max_value(S#state.value_size),
+    Max = ecirca:max_value(S#state.value_size),
     union([integer(0, Max)]
           ++ [X || {X, _} <- S#state.atoms]
           ++ [empty]).
@@ -87,7 +83,7 @@ precondition(#state{type=sum, elements=Els, value_size=ValSize},
     OldVal = array:get(Pos - 1, Els),
     (is_atom(OldVal) orelse
      is_atom(Val) orelse
-     (OldVal + Val) =< max_value(ValSize));
+     (OldVal + Val) =< ecirca:max_value(ValSize));
 precondition(_, _) -> true.
 
 next_state(S, V, {call, Mod, new, [Size, Type]}) ->

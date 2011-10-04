@@ -9,7 +9,7 @@
 %% Setters
 -export([set/3, update/3, push/2, push_many/3, push_list/2]).
 %% Compile-time constants
--export([max_slice/0, max_size/0]).
+-export([max_slice/0, max_size/0, max_value/1]).
 %% Current circa properties
 -export([size/1]).
 %% Persistence
@@ -132,6 +132,13 @@ load(Binary, large) ->
 %% @doc Saves ecirca to binary
 -spec save(ecirca()) -> {ok, binary()}.
 ?WITH_ECIRCA(save).
+
+%% @doc Returns maximun value for given value size.
+-spec max_value(ecirca_value_size()) -> pos_integer().
+max_value(small)  -> 4096 - 1;
+max_value(medium) -> 268435456 - 1;
+max_value(large)  -> 1152921504606846976 - 1.
+
 
 %%% Internal functions
 

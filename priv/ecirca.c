@@ -16,7 +16,7 @@ typedef uint16_t        elem_t;
 #endif
 #if BITNESS == 28
 #define ERL_MAKE_ELEM   enif_make_uint
-#define MAX_VAL         134217728
+#define MAX_VAL         268435456
 #define ROUND           lround
 #define BITNESS_NAME    "medium"
 #define INIT_STR        ERL_NIF_INIT(ecirca_medium, functions, &init, \
@@ -27,7 +27,7 @@ typedef uint32_t        elem_t;
 #define ERL_MAKE_ELEM   enif_make_uint64
 /* bigger vals will be represented as bigints in erlang VM */
 /* TODO: add check for this value in all functions */
-#define MAX_VAL         576460752303423487
+#define MAX_VAL         1152921504606846976
 #define ROUND           llround
 #define BITNESS_NAME    "large"
 #define INIT_STR        ERL_NIF_INIT(ecirca_large, functions, &init, \
