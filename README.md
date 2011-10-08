@@ -1,15 +1,7 @@
-
-
-#The ecirca application#
-
-Ecirca: Erlang Circular Arrays  [![Build Status](https://secure.travis-ci.org/band115/ecirca.png)](http://travis-ci.org/band115/ecirca)
-==============================.
-
-__Authors:__ Alexander Pantyukhov ([`alwx.main@gmail.com`](mailto:alwx.main@gmail.com)), Dmitry Groshev ([`lambdadmitry@gmail.com`](mailto:lambdadmitry@gmail.com)).
-
-
 Ecirca: Erlang Circular Arrays  [![Build Status](https://secure.travis-ci.org/band115/ecirca.png)](http://travis-ci.org/band115/ecirca)
 ==============================
+
+__Authors:__ Alexander Pantyukhov ([`alwx.main@gmail.com`](mailto:alwx.main@gmail.com)), Dmitry Groshev ([`lambdadmitry@gmail.com`](mailto:lambdadmitry@gmail.com)).
 
 License
 -------
@@ -65,11 +57,11 @@ What can I do with it?
 
 - you can store integer values in an array of fixed length;
 - you can set and get values of this array by index (which is in 1..n range);
-- you can push some values to the start of this array, so an equal amount of  
+- you can push some values to the start of this array, so an equal amount of
 values will be removed from the end of array;
-- you can update a value instead of setting it. What will be done depends on  
+- you can update a value instead of setting it. What will be done depends on
 the type of array that is set during creation (more on this later);
-- you can define special atoms that can be used instead of integer value during  
+- you can define special atoms that can be used instead of integer value during
 set/push/update;
 - export an entire array to binary and load it from binary.
 
@@ -105,7 +97,7 @@ Sizes of values
 
 To save some space one can provide one of 3 sizes to new/3: small, medium and
 large.
-- **small**: one element of array use 2 bytes of memory and can store values             
+- **small**: one element of array use 2 bytes of memory and can store values
 up to (2^12 - 1)
 - **medium**: 4 bytes per element, up to (2^28 - 1)
 - **large**: 8 bytes per element, up to (2^60 - 1)
@@ -135,7 +127,7 @@ value in array and B is a value that is passed to update/3):
 - if A is empty, write B;
 - if B is weak and A isn't an empty value, ignore it;
 - if B is empty, ignore it;
-- if B is integer and A is integer, update a value according to ecirca type  
+- if B is integer and A is integer, update a value according to ecirca type
 (more on ecirca types in next section);
 - if B is integer and A is weak atom, write B;
 - if B is integer and A is strong atom, ignore it;
@@ -151,15 +143,15 @@ Ecirca types
 Type of array can be passed in new/2,3,4. Type of array will affect the way how
 update/3 will behave if it operates on integers:
 - if type is **last**, update will just set new value;
-- if type is  **max** or **min**, update will set value to max/min between  
+- if type is  **max** or **min**, update will set value to max/min between
 provided and existing values;
-- if type is **sum**, update will add new value to existing one if sum is lesser  
-or equal than maximum value for this value type, returning {error, overflow}  
+- if type is **sum**, update will add new value to existing one if sum is lesser
+or equal than maximum value for this value type, returning {error, overflow}
 otherwise;
-- if type is **avg**, update will update a value in such way that it will be an  
-average between all values that was passed to update/3 function at this value.  
-One should know that memory consumption of ecirca of type "avg" is increased  
-by 8 bytes per value (there is an extra Double inside used to find true  
+- if type is **avg**, update will update a value in such way that it will be an
+average between all values that was passed to update/3 function at this value.
+One should know that memory consumption of ecirca of type "avg" is increased
+by 8 bytes per value (there is an extra Double inside used to find true
 average).
 
 
@@ -175,7 +167,7 @@ Repository also contais results of this benchmarks to give a tip how fast
 
 Last updated
 ------------
-Oct 8 2011 15:55:40
+Oct 8 2011 16:04:10
 
 
 ##Modules##
