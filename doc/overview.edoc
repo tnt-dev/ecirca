@@ -76,10 +76,12 @@ Sizes of values
 
 To save some space one can provide one of 3 sizes to new/3: small, medium and
 large.
+
 - **small**: one element of array use 2 bytes of memory and can store values
              up to (2^12 - 1)
 - **medium**: 4 bytes per element, up to (2^28 - 1)
 - **large**: 8 bytes per element, up to (2^60 - 1)
+
 As one can see, 4 bits of each value is taken to save an additional information.
 If one try to save value that is bigger than maximum allowed value, he can expect
 {error, overflow} if value is less than int64 and badarg expression otherwise.
@@ -97,6 +99,7 @@ and can be passed to setter functions.
 The second value in tuple, strong or weak, defines behaviour of atom when it is
 used in update/3 function. Following rules are used (let's say that A is a
 value in array and B is a value that is passed to update/3):
+
 - if A is empty, write B;
 - if B is weak and A isn't an empty value, ignore it;
 - if B is empty, ignore it;
@@ -111,6 +114,7 @@ Ecirca types
 
 Type of array can be passed in new/2,3,4. Type of array will affect the way how
 update/3 will behave if it operates on integers:
+
 - if type is **last**, update will just set new value;
 - if type is  **max** or **min**, update will set value to max/min between
   provided and existing values;
