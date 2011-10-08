@@ -1,3 +1,4 @@
+%%% @private
 %%% @doc This module contains function to glue atoms in compile time.
 %%%      The idea of it belongs to Zed from this SO question:
 %%%      http://stackoverflow.com/questions/1423054/

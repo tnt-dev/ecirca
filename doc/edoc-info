@@ -1,0 +1,3 @@
+{application,ecirca}.
+{packages,[]}.
+{modules,[ecirca,ecirca_bench]}.

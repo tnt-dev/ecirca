@@ -182,6 +182,6 @@ Oct 8 2011 15:55:40
 
 
 <table width="100%" border="0" summary="list of modules">
-<tr><td><a href="https://github.com/band115/ecirca/blob/master/doc/ecirca.md" class="module">ecirca</a></td></tr>
-<tr><td><a href="https://github.com/band115/ecirca/blob/master/doc/ecirca_bench.md" class="module">ecirca_bench</a></td></tr></table>
+<tr><td><a href="ecirca.md" class="module">ecirca</a></td></tr>
+<tr><td><a href="ecirca_bench.md" class="module">ecirca_bench</a></td></tr></table>
 
