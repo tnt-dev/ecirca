@@ -700,7 +700,7 @@ update_value(ErlNifEnv* env, circactx* ctx,
             break;
         case ecirca_sum:
             sum = val + ctx->circa[idx];
-            if (sum >= val && sum >= ctx->circa[idx]) { /* no overflow */
+            if (sum >= val && sum >= ctx->circa[idx] && sum < MAX_VAL) { /* no overflow */
                 ctx->circa[idx] = sum;
             } else {
                 *ret = TUPLE2(ATOM_ERROR, ATOM_OVERFLOW);
