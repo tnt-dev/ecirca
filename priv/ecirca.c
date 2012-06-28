@@ -46,9 +46,9 @@ typedef uint64_t        elem_t;
 #define ATOM(A)         enif_make_atom(env, A)
 
 #define PUT_BUF(BUF, OFFSET, VAL) \
-    *((typeof(VAL)*)(BUF + OFFSET)) = VAL; OFFSET += sizeof(VAL);
+    *((__typeof__(VAL)*)(BUF + OFFSET)) = VAL; OFFSET += sizeof(VAL);
 #define GET_BUF(BUF, OFFSET, VAL) \
-    VAL = *((typeof(VAL)*)(BUF + OFFSET)); OFFSET += sizeof(VAL);
+    VAL = *((__typeof__(VAL)*)(BUF + OFFSET)); OFFSET += sizeof(VAL);
 
 #define UNUSED          __attribute__((unused))
 
