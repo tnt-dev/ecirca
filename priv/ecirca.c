@@ -52,7 +52,9 @@ typedef uint64_t        elem_t;
 #define GET_BUF(BUF, OFFSET, VAL) \
     VAL = *((typeof(VAL)*)(BUF + OFFSET)); OFFSET += sizeof(VAL);
 
-typedef uint64_t            length_t;
+#define UNUSED          __attribute__((unused))
+
+typedef ErlNifUInt64        length_t;
 typedef double              avg_t;
 typedef unsigned short int  bool_t;
 
@@ -105,7 +107,7 @@ static int is_empty(elem_t);
 
 /* ecirca destructor */
 void
-circactx_dtor(ErlNifEnv* env, void* obj) {
+circactx_dtor(ErlNifEnv* env UNUSED, void* obj) {
     circactx* ctx = (circactx *) obj;
 
     enif_free(ctx->circa);
@@ -116,7 +118,7 @@ circactx_dtor(ErlNifEnv* env, void* obj) {
 
 /* creating resource type on load */
 static int
-init(ErlNifEnv* env, void** priv, ERL_NIF_TERM info) {
+init(ErlNifEnv* env, void** priv UNUSED, ERL_NIF_TERM info UNUSED) {
     int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
 
     circa_type = enif_open_resource_type(env, NULL, "circa",
@@ -397,7 +399,7 @@ size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 
 /* getter functions for constants */
 static ERL_NIF_TERM
-max_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+max_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[] UNUSED) {
     if (argc != 0) {
         return BADARG;
     }
@@ -406,7 +408,7 @@ max_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 }
 
 static ERL_NIF_TERM
-max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+max_slice(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[] UNUSED) {
     if (argc != 0) {
         return BADARG;
     }
@@ -538,7 +540,11 @@ load(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
     if (ctx->begin > ctx->size) {
         return TUPLE2(ATOM_ERROR, ATOM("bad_ecirca_begin"));
     }
-    if (ctx->type < ecirca_last || ctx->type > ecirca_sum) {
+
+    /* Note(Sergei): we don't check the lower enum bound, because it's
+       impossible for ctx->type to be negative, so the minimum value is
+       '0', which is a valid 'ecirca_type'. */
+    if (ctx->type > ecirca_sum) {
         return TUPLE2(ATOM_ERROR, ATOM("bad_ecirca_type"));
     }
 
@@ -623,8 +629,8 @@ number_to_value(ErlNifEnv* env, circactx* ctx, length_t idx) {
 static vtn_ret
 value_to_number(ErlNifEnv* env, circactx* ctx,
                 ERL_NIF_TERM val, elem_t* num, ERL_NIF_TERM* ret) {
-    int      i;
-    uint64_t val_big;
+    int i;
+    ErlNifUInt64 val_big;
 
     if (!enif_get_uint64(env, val, &val_big)) {
         if (!enif_is_atom(env, val)) {
