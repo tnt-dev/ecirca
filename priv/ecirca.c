@@ -5,32 +5,33 @@
 
 #if BITNESS == 12
 #define ERL_MAKE_ELEM   enif_make_uint
-#define MAX_VAL         4096
 #define ROUND           round
 #define MODULE_NAME     ecirca_small
+#define MAX_SLICE       UINT16_MAX
 typedef uint16_t        elem_t;
 #endif
 #if BITNESS == 28
 #define ERL_MAKE_ELEM   enif_make_uint
-#define MAX_VAL         268435456
 #define ROUND           lround
 #define MODULE_NAME     ecirca_medium
+#define MAX_SLICE       UINT32_MAX
 typedef uint32_t        elem_t;
 #endif
 #if BITNESS == 60
 #define ERL_MAKE_ELEM   enif_make_uint64
 /* bigger vals will be represented as bigints in erlang VM */
 /* TODO: add check for this value in all functions */
-#define MAX_VAL         1152921504606846976
 #define ROUND           llround
 #define MODULE_NAME     ecirca_large
+#define MAX_SLICE       UINT64_MAX
 typedef uint64_t        elem_t;
 #endif
 
+static const elem_t MAX_VAL = (long long) 1 << BITNESS;
+
 #define ERL_MAKE_SIZE   enif_make_uint64
 #define ERL_GET_SIZE    enif_get_uint64
-#define MAX_SLICE       1000000
-#define MAX_SIZE        1000000
+#define MAX_SIZE        MAX_SLICE
 
 #define ATOM_OK         enif_make_atom(env, "ok")
 #define ATOM_ERROR      enif_make_atom(env, "error")
