@@ -55,8 +55,8 @@ static const char emptystr[] = "empty";
 
 /* data structures */
 enum ecirca_type {
-    ECIRCA_LAST = 1, ECIRCA_MAX = 2, ECIRCA_MIN = 3,
-    ECIRCA_AVG  = 4, ECIRCA_SUM = 5
+    ECIRCA_LAST = 0, ECIRCA_MAX = 1, ECIRCA_MIN = 2,
+    ECIRCA_AVG  = 3, ECIRCA_SUM = 4
 };
 
 enum atom_type {
@@ -527,7 +527,7 @@ load(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
         return TUPLE2(ATOM_ERROR, ATOM("bad_ecirca_begin"));
     }
 
-    if (ctx->type < ECIRCA_LAST && ctx->type > ECIRCA_SUM) {
+    if (ctx->type > ECIRCA_SUM) {
         return TUPLE2(ATOM_ERROR, ATOM("bad_ecirca_type"));
     }
 
