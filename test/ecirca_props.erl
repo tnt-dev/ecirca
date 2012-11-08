@@ -3,6 +3,18 @@
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+%% NOTE(Dmitry): looks like there is an error in Erlang itself:
+%% (circa_dev@si14-laptop)10> ATT = [218031268785524224,1013751539199691264,
+%% (circa_dev@si14-laptop)10>                      1148798475812614400].
+%% [218031268785524224,1013751539199691264,1148798475812614400]
+%% (circa_dev@si14-laptop)14> lists:foldl(fun (A,B) -> A + B end, 0, ATT) / 3.
+%% 793527094599276500.0
+%% While in Python:
+%% >>> a = [1148798475812614400, 1013751539199691264, 218031268785524224]
+%% >>> print "%f" % (sum(a) * 1.0 / 3)
+%% 793527094599276544.000000
+%% not sure what to do with this.
+
 -export([initial_state/0, initial_state/4, command/1,
          precondition/2, postcondition/3, next_state/3]).
 
