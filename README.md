@@ -43,10 +43,9 @@ Yes.
 What it is for?
 ---------------
 
-Some day I had a need to store some limited amount of integer data local for
-one Erlang process. Cost of serialization/deserialization was overwhelming, so
-this library was created - initially as an experiment during local code contest,
-and then it became a library that is used in production.
+It's for storing arrays of integers efficiently w.r.t. time and space.
+You can also "push" values efficiently and update them using some basic
+statistical functions.
 
 Give me some examples!
 -------------------
