@@ -23,7 +23,7 @@
 %% Persistence
 -export([load/2, load/1, save/1]).
 
--export_types([res/0, maybe_value/0, value/0]).
+-export_type([maybe_value/0, value/0, ecirca/0]).
 
 %% NOTE: changing of ecirca internal format will break macroses in ecirca.hrl
 -opaque ecirca()          :: {ecirca, reference(), resource(),
