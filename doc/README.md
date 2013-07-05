@@ -94,7 +94,7 @@ Seems pretty easy, eh? Now let's do something more interesting:
 {ok,[empty,6,empty,empty,empty]}
 ```
 
-Remember that `sum` in `ecirca:new`? That`s it. You can also have
+Remember that `sum` in `ecirca:new`? That's it. You can also have
 `last` (last written value, effectively makes `update` identical to
 `set`), `max`, `min` and `avg`.
 
