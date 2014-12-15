@@ -729,18 +729,18 @@ is_empty(elem_t val) {
 
 static ErlNifFunc funcs[] =
 {
-    {"new",       3, new},
-    {"push",      2, push},
-    {"get",       2, get},
-    {"set",       3, set},
-    {"update",    3, update},
-    {"slice",     3, slice},
+    {"new",       3, new,       0},
+    {"push",      2, push,      0},
+    {"get",       2, get,       0},
+    {"set",       3, set,       0},
+    {"update",    3, update,    0},
+    {"slice",     3, slice,     0},
     /* getter functions */
-    {"size",      1, size},
-    {"max_size",  0, max_size},
-    {"max_slice", 0, max_slice},
-    {"save",      1, save},
-    {"load",      1, load}
+    {"size",      1, size,      0},
+    {"max_size",  0, max_size,  0},
+    {"max_slice", 0, max_slice, 0},
+    {"save",      1, save,      0},
+    {"load",      1, load,      0}
 };
 
 
