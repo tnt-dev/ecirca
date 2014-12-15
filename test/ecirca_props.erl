@@ -23,7 +23,7 @@
 -define(VALUE_SIZES, [small, medium, large]).
 
 -record(state, {ecirca     = undefined       :: ecirca:ecirca() | undefined,
-                elements   = array:new()     :: array(),
+                elements   = array:new()     :: array:array(),
                 size       = 0               :: pos_integer(),
                 value_size = medium          :: ecirca:ecirca_value_size(),
                 type       = last            :: ecirca:ecirca_type(),
