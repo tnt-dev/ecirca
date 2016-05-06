@@ -46,4 +46,4 @@ dialyze:
 		-Wrace_conditions -Wunmatched_returns -Wunderspecs #-Wbehaviours
 
 docs:
-	@$(REBAR) doc
+	@$(REBAR) -C rebar_dev.config doc
