@@ -16,14 +16,6 @@ clean:
 	rm -f test/*.beam
 	rm -f erl_crash.dump
 
-tests: clean app eunit # ct
-
-eunit:
-	@$(REBAR) eunit skip_deps=true
-
-ct:
-	@$(REBAR) ct
-
 # dev
 
 devdeps:
@@ -36,9 +28,17 @@ devapp: devdeps
 devclean:
 	$(REBAR) -C rebar_dev.config clean
 
+tests: clean app eunit # ct
+
+eunit:
+	@$(REBAR) -C rebar_dev.config eunit skip_deps=true
+
+ct:
+	@$(REBAR) ct
+
 build-plt:
 	@$(DIALYZER) --build_plt \
-		--apps kernel stdlib sasl inets crypto public_key ssl wx mnesia 
+		--apps kernel stdlib sasl inets crypto public_key ssl wx mnesia
 
 dialyze:
 	@$(DIALYZER) -r ebin \
