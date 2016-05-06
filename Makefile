@@ -24,6 +24,18 @@ eunit:
 ct:
 	@$(REBAR) ct
 
+# dev
+
+devdeps:
+	$(REBAR) -C rebar_dev.config get-deps
+
+
+devapp: devdeps
+	$(REBAR) -C rebar_dev.config compile
+
+devclean:
+	$(REBAR) -C rebar_dev.config clean
+
 build-plt:
 	@$(DIALYZER) --build_plt \
 		--apps kernel stdlib sasl inets crypto public_key ssl wx mnesia 
