@@ -1,5 +1,6 @@
 -include("ecirca.hrl").
 -compile(export_all).
+-compile(nowarn_export_all).
 -on_load(nif_init/0).
 
 new(_, _, _)    -> ?STUB.
